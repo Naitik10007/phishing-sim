@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Arrest — Think Before You Act</title>
+    <meta name="description" content="Interactive cybersecurity awareness simulation (fictional training content)." />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- Everything the game touches lives inside this one div. All CSS is
+         scoped under .digital-arrest-game and all JS queries start from
+         #digital-arrest-game, so this is safe to drop into any page. -->
+    <div id="digital-arrest-game" class="digital-arrest-game">
+      <div class="dag-frame">
+        <div class="dag-stage"></div>
+      </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
