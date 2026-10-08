@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Progress — Tech Day 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="top-bar">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+
+<header>
+  <div class="header-icon">&#x1F4CA;</div>
+  <div class="header-text">
+    <h1>My Progress</h1>
+    <p>Tracking &amp; monitoring</p>
+  </div>
+</header>
+
+<div class="page">
+  <a class="back-btn" href="index.html">&#8592; Home</a>
+  <div class="section-title" id="progTitle">Your training status</div>
+  <div class="section-sub">Completion, scores, and engagement for this participant (saved in the browser; syncs to Sheet if configured).</div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <h3 style="margin:8px 0 12px;font-size:1rem;">Completion checklist</h3>
+  <div class="track-list" id="trackList"></div>
+
+  <h3 style="margin:28px 0 12px;font-size:1rem;">Engagement</h3>
+  <div class="stat-grid" id="engGrid"></div>
+
+  <div class="board-banner" id="syncNote" style="margin-top:20px;"></div>
+  <button class="login-btn" style="max-width:280px;margin-top:12px;" type="button" id="syncBtn">Refresh &amp; sync score</button>
+</div>
+
+<footer>Tech Day 2026</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+if (!TDApp.requireUser('progress.html')) { /* redirect */ }
+
+document.getElementById('navMount').innerHTML = TDApp.navHtml('progress');
+TDApp.renderUserChip(document.getElementById('userChip'));
+
+function render() {
+  var u = TDApp.getUser();
+  var p = TDApp.getProgress();
+  var score = TDApp.totalScore(p);
+  document.getElementById('progTitle').textContent = u.name;
+
+  var quizPct = Math.round(((p.quizBest || 0) / 10) * 100);
+  var simPct = Math.round(((p.simFlags || 0) / 24) * 100);
+  var vidCount = Object.keys(p.videosWatched || {}).length;
+
+  document.getElementById('statGrid').innerHTML =
+    card(score, 'Total score') +
+    card(p.quizBest + '/10', 'Best quiz') +
+    card(p.simFlags + '/24', 'Clues found') +
+    card(TDApp.awarenessLabel(score), 'Level');
+
+  var items = [
+    { icon: '🧠', title: 'Quick Quiz', sub: (p.quizAttempts || 0) + ' attempt(s) · best ' + (p.quizBest || 0), done: (p.quizBest || 0) >= 7 },
+    { icon: '🎣', title: 'Scenarios', sub: (p.simFlags || 0) + ' of 24 clues', done: !!p.simDone },
+    { icon: '🎬', title: 'Awareness videos', sub: vidCount + ' watched', done: vidCount >= 1 },
+    { icon: '📝', title: 'Feedback', sub: localStorage.getItem('td26_feedback_done') ? 'Submitted' : 'Not yet', done: !!localStorage.getItem('td26_feedback_done') }
+  ];
+
+  document.getElementById('trackList').innerHTML = items.map(function (it) {
+    return '<div class="track-item"><div class="ti-icon">' + it.icon + '</div>' +
+      '<div class="ti-body"><strong>' + it.title + '</strong><span>' + it.sub + '</span>' +
+      '<div class="progress-bar-lg"><span style="width:' + (it.done ? 100 : 35) + '%"></span></div></div>' +
+      '<div class="ti-status ' + (it.done ? 'done' : 'todo') + '">' + (it.done ? 'Done' : 'In progress') + '</div></div>';
+  }).join('');
+
+  var e = p.engagement || {};
+  document.getElementById('engGrid').innerHTML =
+    card(e.correctAnswers || 0, 'Correct picks') +
+    card(e.wrongAnswers || 0, 'Wrong picks') +
+    card(e.clicks || 0, 'Clue taps') +
+    card(quizPct + '% / ' + simPct + '%', 'Quiz / Sim');
+
+  document.getElementById('syncNote').textContent = TDApp.isOnlineBoard()
+    ? 'Shared tracking is on — organizers can view Progress in the Google Sheet.'
+    : 'Local tracking only. Set SCRIPT_URL in js/config.js to sync progress for organizers (free Sheet).';
+}
+
+function card(v, l) {
+  return '<div class="stat-card"><div class="sv">' + v + '</div><div class="sl">' + l + '</div></div>';
+}
+
+render();
+
+document.getElementById('syncBtn').addEventListener('click', function () {
+  var btn = document.getElementById('syncBtn');
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
+  TDApp.publishScore()
+    .then(function () { return TDApp.syncProgressRemote(); })
+    .then(function () {
+      render();
+      TDApp.toast({ type: 'ok', icon: '📤', title: 'Synced', message: 'Leaderboard and progress updated.', ms: 2500 });
+      btn.disabled = false;
+      btn.textContent = 'Refresh & sync score';
+    });
+});
+</script>
+</body>
+</html>

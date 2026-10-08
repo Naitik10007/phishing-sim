@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard — Tech Day 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="top-bar">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+
+<header>
+  <div class="header-icon">&#x1F3C6;</div>
+  <div class="header-text">
+    <h1>Leaderboard</h1>
+    <p>Quiz + scenarios + awareness</p>
+  </div>
+</header>
+
+<div class="page">
+  <div class="section-title">Participant rankings</div>
+  <div class="section-sub">Score mixes quiz best, scenario clues found, completion, and videos watched.</div>
+
+  <div class="board-banner" id="boardMode">Loading…</div>
+
+  <div class="board-table-wrap">
+    <table class="board-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Score</th>
+          <th>Quiz</th>
+          <th>Clues</th>
+          <th>Level</th>
+        </tr>
+      </thead>
+      <tbody id="boardBody">
+        <tr><td colspan="6" class="empty-board">Loading rankings…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:16px;font-size:.8rem;color:var(--text-muted);">
+    Finish the quiz or scenarios, then your best score is published automatically.
+  </p>
+</div>
+
+<footer>Tech Day 2026 — Free hosting on GitHub Pages</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.getElementById('navMount').innerHTML = TDApp.navHtml('board');
+TDApp.renderUserChip(document.getElementById('userChip'));
+
+var me = TDApp.getUser();
+
+function rankClass(i) {
+  if (i === 0) return 'gold';
+  if (i === 1) return 'silver';
+  if (i === 2) return 'bronze';
+  return '';
+}
+
+function render(rows, mode, warn) {
+  var banner = document.getElementById('boardMode');
+  if (mode === 'remote') {
+    banner.textContent = 'Shared leaderboard (Google Sheet) — free, no database server.';
+  } else {
+    banner.textContent = warn || 'Device leaderboard — scores on this browser. Add SCRIPT_URL in js/config.js for a shared board.';
+  }
+
+  var body = document.getElementById('boardBody');
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-board">No scores yet — complete the quiz or scenarios first.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map(function (r, i) {
+    var isMe = me && (
+      String(r.id) === String(me.id) ||
+      (r.name && me.name && String(r.name).toLowerCase() === String(me.name).toLowerCase())
+    );
+    return '<tr class="' + (isMe ? 'me' : '') + '">' +
+      '<td><span class="rank-pill ' + rankClass(i) + '">' + (i + 1) + '</span></td>' +
+      '<td><strong>' + escape(r.name) + '</strong>' + (isMe ? ' <small style="color:var(--orange)">(you)</small>' : '') + '</td>' +
+      '<td class="score-big">' + (r.score || 0) + '</td>' +
+      '<td>' + (r.quizBest || 0) + '/10</td>' +
+      '<td>' + (r.simFlags || 0) + '/24</td>' +
+      '<td>' + escape(r.label || '') + '</td></tr>';
+  }).join('');
+}
+
+function escape(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+  });
+}
+
+TDApp.publishScore().then(function () {
+  return TDApp.fetchLeaderboard();
+}).then(function (res) {
+  render(res.rows || [], res.mode, res.warn);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tech Day 2026 — Spot the Scam</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="top-bar" id="topBar">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+
+<header>
+  <div class="header-icon">&#x1F6E1;&#xFE0F;</div>
+  <div class="header-text">
+    <h1>Tech Day 2026 — Security Awareness</h1>
+    <p>Spot the Scam</p>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- LOGIN GATE -->
+  <div id="loginGate" style="display:none;">
+    <div class="home-hero" style="padding-bottom:24px;">
+      <span class="shield">&#x1F6E1;&#xFE0F;</span>
+      <h2>Before you start</h2>
+      <p>Enter your name so we can put you on the leaderboard.</p>
+    </div>
+    <div class="login-card">
+      <h3>Join the training</h3>
+      <p class="login-sub">Type your name, then start. Your scores save on this device (and on the shared board if it’s set up).</p>
+      <div class="login-error" id="loginError">Please enter your name (at least 2 letters).</div>
+      <form id="loginForm" autocomplete="on">
+        <div class="login-field">
+          <label for="inName">Your name</label>
+          <input id="inName" name="playerName" type="text" maxlength="40" placeholder="e.g. Vidhi" autocomplete="name" required>
+        </div>
+        <button class="login-btn" id="loginBtn" type="submit">Start training</button>
+      </form>
+      <p class="login-note">After the quiz or scenarios, open Leaderboard to see your rank.</p>
+    </div>
+  </div>
+
+  <!-- HOME (after login) -->
+  <div id="homeContent" style="display:none;">
+    <div class="home-hero">
+      <span class="shield">&#x1F6E1;&#xFE0F;</span>
+      <h2>Can You Spot the Scam?</h2>
+      <p id="welcomeLine">Practice with everyday emails, texts, and links.</p>
+    </div>
+
+    <div class="mode-grid-home">
+      <a class="mode-card" href="quiz.html">
+        <span class="card-icon">&#x1F9E0;</span>
+        <h3>Quick Quiz</h3>
+        <p>10 situations — wrong answers get an instant tip.</p>
+        <span class="card-badge">Quiz</span>
+      </a>
+      <a class="mode-card" href="simulation.html">
+        <span class="card-icon">&#x1F3A3;</span>
+        <h3>Scenarios</h3>
+        <p>Tap debit alerts, “hacked” DMs, and fake pages.</p>
+        <span class="card-badge">6 Scenes</span>
+      </a>
+      <a class="mode-card" href="videos.html">
+        <span class="card-icon">&#x1F3AC;</span>
+        <h3>Videos &amp; Animations</h3>
+        <p>Short clips on how real-world scams work.</p>
+        <span class="card-badge">Watch</span>
+      </a>
+      <a class="mode-card" href="leaderboard.html">
+        <span class="card-icon">&#x1F3C6;</span>
+        <h3>Leaderboard</h3>
+        <p>See who’s ahead on quiz + scenario scores.</p>
+        <span class="card-badge">Ranks</span>
+      </a>
+      <a class="mode-card" href="progress.html">
+        <span class="card-icon">&#x1F4CA;</span>
+        <h3>My Progress</h3>
+        <p>Completion, scores, and engagement on this device.</p>
+        <span class="card-badge">Track</span>
+      </a>
+      <a class="mode-card" href="feedback.html">
+        <span class="card-icon">&#x1F4DD;</span>
+        <h3>Feedback</h3>
+        <p>Rate the training and share ideas.</p>
+        <span class="card-badge">Form</span>
+      </a>
+      <a class="mode-card" href="monitor.html">
+        <span class="card-icon">&#x1F4E1;</span>
+        <h3>Organizer Monitor</h3>
+        <p>See participant scores and completion (shared Sheet or this device).</p>
+        <span class="card-badge">Staff</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Tech Day 2026 &mdash; Free GitHub Pages host &nbsp;|&nbsp; Demo content only
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var next = params.get('next') || '';
+
+  document.getElementById('navMount').innerHTML = TDApp.navHtml('home');
+  TDApp.renderUserChip(document.getElementById('userChip'));
+
+  function showHome() {
+    var u = TDApp.getUser();
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('homeContent').style.display = 'block';
+    document.getElementById('welcomeLine').textContent =
+      'Welcome, ' + u.name + '! Pick a mode below.';
+    TDApp.renderUserChip(document.getElementById('userChip'));
+  }
+
+  function showLogin() {
+    document.getElementById('loginGate').style.display = 'block';
+    document.getElementById('homeContent').style.display = 'none';
+    setTimeout(function () {
+      var input = document.getElementById('inName');
+      if (input) input.focus();
+    }, 50);
+  }
+
+  if (TDApp.getUser() && TDApp.getUser().name && !params.get('needLogin')) {
+    showHome();
+  } else {
+    showLogin();
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('inName').value;
+    var err = document.getElementById('loginError');
+    if (!TDApp.setUser(name)) {
+      err.classList.add('show');
+      return;
+    }
+    err.classList.remove('show');
+    TDApp.publishScore();
+    TDApp.toast({ type: 'ok', icon: '✅', title: 'You’re in, ' + name.trim() + '!', message: 'Scores will count on the leaderboard.', ms: 2800 });
+    if (next && next !== 'index.html') {
+      location.href = decodeURIComponent(next);
+      return;
+    }
+    history.replaceState({}, '', 'index.html');
+    showHome();
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organizer Monitor — Tech Day 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="top-bar">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+
+<header>
+  <div class="header-icon">&#x1F4E1;</div>
+  <div class="header-text">
+    <h1>Organizer monitor</h1>
+    <p>Participant tracking</p>
+  </div>
+</header>
+
+<div class="page">
+  <a class="back-btn" href="index.html">&#8592; Home</a>
+  <div class="section-title">Live participant snapshot</div>
+  <div class="section-sub">Shows the shared Progress sheet when SCRIPT_URL is set. Otherwise shows scores saved on this browser.</div>
+
+  <div class="board-banner" id="monBanner">Loading…</div>
+
+  <div class="board-table-wrap">
+    <table class="board-table">
+      <thead>
+        <tr>
+          <th>Name / ID</th>
+          <th>Score</th>
+          <th>Quiz</th>
+          <th>Clues</th>
+          <th>Done?</th>
+          <th>Videos</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody id="monBody">
+        <tr><td colspan="7" class="empty-board">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:16px;font-size:.85rem;color:var(--text-muted);">
+    Tip: For event day, set <code>SCRIPT_URL</code> in <code>js/config.js</code> so every phone/laptop reports into one Google Sheet.
+  </p>
+  <button class="login-btn" style="max-width:220px;margin-top:12px;" type="button" id="refreshBtn">Refresh</button>
+</div>
+
+<footer>Tech Day 2026 — Organizer view</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.getElementById('navMount').innerHTML = TDApp.navHtml('home');
+TDApp.renderUserChip(document.getElementById('userChip'));
+
+function escape(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+  });
+}
+
+function load() {
+  var banner = document.getElementById('monBanner');
+  var body = document.getElementById('monBody');
+  var url = (APP_CONFIG && APP_CONFIG.SCRIPT_URL) || '';
+
+  function renderRows(rows, mode) {
+    banner.textContent = mode === 'remote'
+      ? 'Shared Progress sheet (organizer view).'
+      : 'Device-only view — enable SCRIPT_URL for all participants.';
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="7" class="empty-board">No participant data yet.</td></tr>';
+      return;
+    }
+    rows.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
+    body.innerHTML = rows.map(function (r) {
+      return '<tr><td><strong>' + escape(r.name) + '</strong></td>' +
+        '<td class="score-big">' + (r.score || 0) + '</td>' +
+        '<td>' + (r.quizBest || 0) + '/10</td>' +
+        '<td>' + (r.simFlags || 0) + '/24</td>' +
+        '<td>' + (r.simDone === true || r.simDone === 'TRUE' || r.simDone === 'true' ? 'Yes' : '—') + '</td>' +
+        '<td>' + (r.videos || 0) + '</td>' +
+        '<td><small>' + escape(String(r.updatedAt || '').slice(0, 19)) + '</small></td></tr>';
+    }).join('');
+  }
+
+  if (!url) {
+    renderRows(TDApp.getLocalBoard(), 'local');
+    return;
+  }
+
+  fetch(url + '?action=progress&t=' + Date.now())
+    .then(function (r) { return r.json(); })
+    .then(function (data) { renderRows(data.rows || [], 'remote'); })
+    .catch(function () {
+      banner.textContent = 'Could not load shared Progress — showing this device.';
+      renderRows(TDApp.getLocalBoard(), 'local');
+    });
+}
+
+load();
+document.getElementById('refreshBtn').addEventListener('click', load);
+</script>
+</body>
+</html>

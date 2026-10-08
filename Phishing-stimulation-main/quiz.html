@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phishing Trivia — Tech Day 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="top-bar">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+
+<header>
+  <div class="header-icon">&#x1F6E1;&#xFE0F;</div>
+  <div class="header-text">
+    <h1>Tech Day 2026 — Security Awareness</h1>
+    <p>Spot the Scam</p>
+  </div>
+</header>
+
+<div class="page">
+  <a class="back-btn" href="index.html">&#8592; Back to Home</a>
+  <div class="section-title">Phishing Trivia</div>
+  <div class="section-sub">10 everyday situations — pick what you’d actually do. Wrong picks get an instant tip.</div>
+
+  <div class="quiz-meta">
+    <span id="qProgress">Question 1 of 10</span>
+    <span id="qScore">Score: 0</span>
+  </div>
+  <div class="quiz-progress-bar-wrap">
+    <div class="quiz-progress-bar" id="qProgressBar" style="width:10%"></div>
+  </div>
+
+  <div class="quiz-card" id="quizCard">
+    <div class="quiz-category" id="qCategory"></div>
+    <div class="quiz-question" id="qQuestion"></div>
+    <div class="quiz-options" id="qOptions"></div>
+    <div class="quiz-feedback" id="qFeedback"></div>
+    <button class="quiz-next-btn" id="qNextBtn" onclick="nextQuestion()">Next &#8594;</button>
+  </div>
+
+  <div class="quiz-results" id="quizResults">
+    <span class="results-trophy" id="resultsTrophy"></span>
+    <div class="results-rating" id="resultsRating"></div>
+    <div class="results-score" id="resultsScore"></div>
+    <div class="results-breakdown" id="resultsBreakdown"></div>
+    <p id="lbNote" style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px;"></p>
+    <button class="play-again-btn" onclick="startQuiz()">Play Again</button>
+    <a class="home-btn" href="leaderboard.html">Leaderboard</a>
+    <a class="home-btn" href="feedback.html">Feedback</a>
+  </div>
+</div>
+
+<footer>
+  Tech Day 2026 &mdash; For learning only — none of these messages are real
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+if (!TDApp.requireUser('quiz.html')) return;
+
+document.getElementById('navMount').innerHTML = TDApp.navHtml('quiz');
+TDApp.renderUserChip(document.getElementById('userChip'));
+
+var questions = [
+  {
+    category: "Weird Links",
+    q: "An email asks you to log in at http://paypa1.com/secure-login. What stands out?",
+    options: [
+      "It's missing 'www' at the front",
+      "The name looks like PayPal, but a character is swapped",
+      "Login pages should never use 'secure' in the path",
+      "Short links are always safer than long ones"
+    ],
+    answer: 1,
+    explanation: "Scammers often swap look-alike characters (like a '1' for an 'l') so the name feels familiar at a glance. Slow down and check the name letter by letter before you tap."
+  },
+  {
+    category: "Who Sent This?",
+    q: "A message labeled “Apple Support” comes from support@apple-helpdesk.support.net. What would you do?",
+    options: [
+      "Trust it — the name says Apple Support",
+      "Trust it — it looks polished and professional",
+      "Be careful — the address isn’t from Apple’s usual domain",
+      "Only trust it after you open every attachment"
+    ],
+    answer: 2,
+    explanation: "Anyone can put a familiar name in the From line. What matters is the real email address after the @. If it isn’t the company’s real domain, treat it as suspicious."
+  },
+  {
+    category: "Pressure Tactics",
+    q: "A text says your account will be deleted in 2 hours unless you “verify now.” What’s going on?",
+    options: [
+      "It’s a helpful reminder from your bank",
+      "It’s trying to rush you so you don’t think it through",
+      "It’s only a problem if the message has a link",
+      "Two-hour deadlines are normal for big companies"
+    ],
+    answer: 1,
+    explanation: "Real companies almost never threaten instant cutoffs by text. That rush feeling is the whole trick — it pushes you to click before you double-check."
+  },
+  {
+    category: "Unexpected Files",
+    q: "You get an invoice you weren’t expecting, with a .docm file attached. Best move?",
+    options: [
+      "Open it — Word files from email are fine",
+      "Open it if your antivirus is on",
+      "Don’t open it until you confirm with the sender another way",
+      "Forward it to a coworker so they can open it instead"
+    ],
+    answer: 2,
+    explanation: "Unexpected files — especially ones that ask you to “enable content” — are a common way scams sneak in. Ask the person through a call or chat you already trust before opening anything."
+  },
+  {
+    category: "The Padlock Myth",
+    q: "A login page shows a padlock in the address bar. Does that mean it’s safe?",
+    options: [
+      "Yes — the padlock means the site was officially checked",
+      "Yes — only real businesses can show a padlock",
+      "Not by itself — it only means the connection is private, not that the site is honest",
+      "Yes — fake sites can’t use a padlock"
+    ],
+    answer: 2,
+    explanation: "Lots of fake sites still show a padlock. It just means your info is scrambled in transit — it doesn’t prove who you’re talking to. Always check the site name itself."
+  },
+  {
+    category: "Phone Calls",
+    q: "Someone calls claiming to be from IT and needs your password to “fix a server issue.” What do you do?",
+    options: [
+      "Give it — they’re internal and it sounds urgent",
+      "Give a fake password first to test them",
+      "Hang up — real IT won’t ask for your password",
+      "Email the password later so it’s not said out loud"
+    ],
+    answer: 2,
+    explanation: "IT can do their job without your password. If someone asks for it, hang up and reach out through the official help desk number or chat you already know."
+  },
+  {
+    category: "Password Asks",
+    q: "An email that looks like HR asks you to reply with your portal password before open enrollment. What’s the call?",
+    options: [
+      "Normal — HR does this every year",
+      "A scam — nobody at work should ask for your password by email",
+      "Fine if the address ends in your company name",
+      "Fine if you reply from your work laptop"
+    ],
+    answer: 1,
+    explanation: "Passwords stay with you. HR, IT, and finance use their own tools — they don’t need you to send yours. When in doubt, ask them in person or through a channel you already use."
+  },
+  {
+    category: "Wording Clues",
+    q: "An “official” email says: “Dear costumer, kindly update you're informations immediately.” What does that hint at?",
+    options: [
+      "The writer isn’t a native speaker, but it’s probably fine",
+      "Big companies make typos all the time",
+      "Several mistakes in a “formal” message are a warning sign",
+      "Only the word ‘costumer’ matters; the rest is fine"
+    ],
+    answer: 2,
+    explanation: "Real brands usually proofread. A bunch of awkward mistakes in a message that wants you to act fast is a common scam pattern — pause and verify another way."
+  },
+  {
+    category: "Before You Tap",
+    q: "An email says “Click here to update your Netflix account.” What should you do first?",
+    options: [
+      "Click — the words say Netflix, so it’s Netflix",
+      "Hover or long-press the link to peek at where it really goes",
+      "Click, then check the address after the page loads",
+      "It’s safe if the company name appears in the button text"
+    ],
+    answer: 1,
+    explanation: "The words on a button can say anything. Peek at the real address first. If it doesn’t match the real company site, don’t tap."
+  },
+  {
+    category: "What Next?",
+    q: "You spot a scam email and don’t click anything. What’s the best next step?",
+    options: [
+      "Delete it and forget it — you’re fine",
+      "Reply and tell them you caught them",
+      "Forward it to friends so they can see it",
+      "Report it with your company’s Report button or security inbox"
+    ],
+    answer: 3,
+    explanation: "Reporting helps protect everyone else, not just you. Don’t reply (that tells them your inbox is live) and don’t forward it around — use the official report path."
+  }
+];
+
+var currentQ  = 0;
+var score     = 0;
+var answered  = false;
+var userAnswers = [];
+
+function startQuiz() {
+  currentQ    = 0;
+  score       = 0;
+  answered    = false;
+  userAnswers = [];
+  document.getElementById('quizCard').style.display = 'block';
+  document.getElementById('quizResults').classList.remove('show');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  answered = false;
+  var q = questions[currentQ];
+  var card = document.getElementById('quizCard');
+  card.classList.remove('q-enter');
+  void card.offsetWidth;
+  card.classList.add('q-enter');
+
+  document.getElementById('qCategory').textContent = q.category;
+  document.getElementById('qQuestion').textContent = q.q;
+  document.getElementById('qProgress').textContent = 'Question ' + (currentQ + 1) + ' of ' + questions.length;
+  document.getElementById('qScore').textContent    = 'Score: ' + score;
+  document.getElementById('qProgressBar').style.width = ((currentQ / questions.length) * 100) + '%';
+
+  var optionsEl = document.getElementById('qOptions');
+  optionsEl.innerHTML = '';
+  var letters = ['A', 'B', 'C', 'D'];
+
+  q.options.forEach(function(opt, i) {
+    var btn = document.createElement('button');
+    btn.className = 'quiz-option';
+    btn.style.animationDelay = (i * 0.06) + 's';
+    btn.innerHTML = '<span class="option-letter">' + letters[i] + '</span><span class="option-text">' + opt + '</span>';
+    btn.addEventListener('click', function() { selectAnswer(i, btn); });
+    optionsEl.appendChild(btn);
+  });
+
+  var fb = document.getElementById('qFeedback');
+  fb.className = 'quiz-feedback';
+  fb.innerHTML = '';
+  document.getElementById('qNextBtn').classList.remove('show');
+}
+
+function selectAnswer(index, clickedBtn) {
+  if (answered) return;
+  answered = true;
+
+  var q    = questions[currentQ];
+  var isOk = (index === q.answer);
+  var btns = document.querySelectorAll('.quiz-option');
+
+  userAnswers.push({ correct: isOk, category: q.category });
+
+  btns.forEach(function(btn, i) {
+    btn.disabled = true;
+    if (i === q.answer) btn.classList.add(isOk && i === index ? 'correct' : 'reveal');
+    if (i === index && !isOk) btn.classList.add('wrong');
+  });
+
+  if (isOk) {
+    score++;
+    document.getElementById('qScore').textContent = 'Score: ' + score;
+    clickedBtn.classList.add('pop-correct');
+    spawnBurst(clickedBtn, true);
+    TDApp.bumpEngagement('correctAnswers');
+    TDApp.toast({
+      type: 'ok',
+      icon: '✅',
+      title: 'Nice catch!',
+      message: q.explanation,
+      ms: 3800
+    });
+  } else {
+    clickedBtn.classList.add('shake-wrong');
+    spawnBurst(clickedBtn, false);
+    TDApp.bumpEngagement('wrongAnswers');
+    TDApp.toast({
+      type: 'error',
+      icon: '⚡',
+      title: 'Heads up — not that one',
+      message: q.explanation,
+      ms: 5200
+    });
+  }
+
+  var fb = document.getElementById('qFeedback');
+  fb.className = 'quiz-feedback show ' + (isOk ? 'correct-fb' : 'wrong-fb');
+  fb.innerHTML = '<strong>' + (isOk ? 'Nice catch!' : 'Not quite') + '</strong>' + q.explanation;
+
+  var nextBtn = document.getElementById('qNextBtn');
+  nextBtn.textContent = currentQ < questions.length - 1 ? 'Next \u2192' : 'See Results';
+  nextBtn.classList.add('show');
+}
+
+function spawnBurst(el, good) {
+  var rect = el.getBoundingClientRect();
+  var cx = rect.left + rect.width / 2;
+  var cy = rect.top + rect.height / 2;
+  var colors = good ? ['#06d6a0', '#ffd166', '#4ade80'] : ['#e63946', '#f4831f', '#ff8a93'];
+  for (var i = 0; i < 8; i++) {
+    (function() {
+      var p = document.createElement('div');
+      p.className = 'quiz-particle';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.left = cx + 'px';
+      p.style.top = cy + 'px';
+      document.body.appendChild(p);
+      var a = Math.random() * Math.PI * 2;
+      var s = 40 + Math.random() * 60;
+      var dx = Math.cos(a) * s, dy = Math.sin(a) * s, start = null;
+      function step(ts) {
+        if (!start) start = ts;
+        var t = (ts - start) / 600;
+        if (t >= 1) { p.remove(); return; }
+        p.style.transform = 'translate(' + (dx * t) + 'px,' + (dy * t) + 'px) scale(' + (1 - t) + ')';
+        p.style.opacity = String(1 - t);
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    })();
+  }
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= questions.length) {
+    showResults();
+  } else {
+    renderQuestion();
+  }
+}
+
+function showResults() {
+  document.getElementById('quizCard').style.display = 'none';
+  var results = document.getElementById('quizResults');
+  results.classList.add('show');
+  document.getElementById('qProgressBar').style.width = '100%';
+
+  var pct = score / questions.length;
+  var trophy, rating;
+
+  if      (pct >= 0.9) { trophy = '\uD83C\uDFC6'; rating = 'Scam Spotter'; }
+  else if (pct >= 0.7) { trophy = '\uD83D\uDEE1\uFE0F'; rating = 'Sharp Eye'; }
+  else if (pct >= 0.5) { trophy = '\uD83D\uDCDA'; rating = 'Getting There'; }
+  else                 { trophy = '\uD83C\uDFAF'; rating = 'Keep Practicing'; }
+
+  document.getElementById('resultsTrophy').textContent = trophy;
+  document.getElementById('resultsRating').textContent = rating;
+  document.getElementById('resultsScore').textContent  =
+    'You got ' + score + ' of ' + questions.length + ' (' + Math.round(pct * 100) + '%)';
+
+  var breakdown = document.getElementById('resultsBreakdown');
+  breakdown.innerHTML = '';
+  userAnswers.forEach(function(a, i) {
+    var div = document.createElement('div');
+    div.className = 'breakdown-item ' + (a.correct ? 'pass' : 'fail');
+    div.innerHTML = '<span class="bi-icon">' + (a.correct ? '&#x2705;' : '&#x274C;') + '</span>Q' + (i + 1) + ': ' + a.category;
+    breakdown.appendChild(div);
+  });
+
+  var prev = TDApp.getProgress();
+  var best = Math.max(prev.quizBest || 0, score);
+  TDApp.saveProgress({
+    quizBest: best,
+    quizAttempts: (prev.quizAttempts || 0) + 1,
+    quizLast: score
+  });
+  var note = document.getElementById('lbNote');
+  note.textContent = 'Saving your score to the leaderboard…';
+  TDApp.publishScore().then(function (res) {
+    note.textContent = res.mode === 'remote'
+      ? 'Score published to the shared leaderboard (best: ' + best + '/10).'
+      : 'Score saved on this device (best: ' + best + '/10). Open Leaderboard to see rankings.';
+  });
+}
+
+startQuiz();
+})();
+</script>
+</body>
+</html>

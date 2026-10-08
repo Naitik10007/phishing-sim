@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Videos — Tech Day 2026</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .page.wide { max-width: 1280px; }
+    .lib-head { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    .lib-head .section-title { margin-bottom:4px; }
+    .lib-head .section-sub { margin-bottom:0; }
+    .lib-count { font-size:.8rem; font-weight:700; color:var(--orange); background:rgba(244,131,31,.12);
+      border:1px solid rgba(244,131,31,.3); padding:6px 14px; border-radius:999px; white-space:nowrap; }
+
+    .yt-layout { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:28px; align-items:start; }
+
+    .yt-player { position:relative; aspect-ratio:16/9; background:#000; border-radius:14px; overflow:hidden;
+      box-shadow:var(--shadow); border:1px solid var(--border); }
+    .yt-player video { position:absolute; inset:0; width:100%; height:100%; background:#000; }
+    .yt-error { position:absolute; inset:0; display:none; align-items:center; justify-content:center; text-align:center;
+      padding:24px; background:rgba(11,18,32,.94); color:#ff8a93; font-size:.9rem; line-height:1.6; }
+    .yt-error.show { display:flex; }
+    .yt-error code { background:rgba(255,255,255,.08); padding:1px 6px; border-radius:4px; }
+
+    .yt-now { margin:16px 0 4px; font-size:.7rem; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:var(--orange); }
+    .yt-title { font-size:1.45rem; font-weight:800; line-height:1.3; margin-bottom:10px; }
+    .yt-meta { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+    .yt-chip { font-size:.72rem; font-weight:700; color:var(--text); background:var(--navy-light);
+      border:1px solid var(--border); padding:4px 12px; border-radius:999px; }
+    .yt-chip.ok { color:var(--green); border-color:rgba(6,214,160,.45); background:rgba(6,214,160,.1); }
+    .yt-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .yt-btn { padding:9px 18px; border-radius:999px; border:1.5px solid var(--border); background:var(--navy-light);
+      color:var(--text); font-size:.85rem; font-weight:700; cursor:pointer; transition:.15s; }
+    .yt-btn:hover { border-color:var(--accent); }
+    .yt-btn.primary { background:linear-gradient(90deg,var(--orange),var(--red)); border-color:transparent; color:#fff; }
+    .yt-btn.primary:hover { opacity:.9; }
+    .yt-btn.done { background:rgba(6,214,160,.12); border-color:rgba(6,214,160,.5); color:var(--green); cursor:default; }
+    .yt-toggle { display:inline-flex; align-items:center; gap:8px; font-size:.82rem; color:var(--text-muted); cursor:pointer; user-select:none; }
+    .yt-toggle input { accent-color:var(--orange); width:16px; height:16px; cursor:pointer; }
+    .yt-desc { background:var(--navy-card); border:1px solid var(--border); border-radius:12px; padding:16px 18px;
+      font-size:.9rem; line-height:1.65; color:var(--text); }
+    .yt-desc h4 { font-size:.78rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:6px; }
+    .yt-desc ul { margin:10px 0 0 18px; color:var(--text-muted); font-size:.85rem; }
+    .yt-desc li { margin-bottom:4px; }
+
+    .yt-side h3 { font-size:1rem; font-weight:800; margin-bottom:12px; }
+    .yt-list { display:flex; flex-direction:column; gap:10px; }
+    .yt-item { display:flex; gap:12px; padding:8px; border-radius:12px; border:1px solid transparent;
+      background:transparent; cursor:pointer; text-align:left; color:inherit; width:100%; font-family:inherit; transition:.15s; }
+    .yt-item:hover { background:var(--navy-card); border-color:var(--border); }
+    .yt-item.active { background:var(--navy-card); border-color:var(--accent); }
+    .yt-thumb { position:relative; flex:0 0 168px; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:#0d1526; }
+    .yt-thumb video, .yt-thumb img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; }
+    .yt-dur { position:absolute; right:6px; bottom:6px; background:rgba(0,0,0,.82); color:#fff; font-size:.7rem;
+      font-weight:700; padding:2px 6px; border-radius:4px; }
+    .yt-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:#fff;
+      background:rgba(0,0,0,.28); opacity:0; transition:.15s; }
+    .yt-item:hover .yt-play { opacity:1; }
+    .yt-item.active .yt-play { opacity:1; background:rgba(244,131,31,.25); font-size:.8rem; font-weight:800; letter-spacing:1px; }
+    .yt-info { min-width:0; display:flex; flex-direction:column; gap:4px; }
+    .yt-info strong { font-size:.9rem; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .yt-info small { font-size:.74rem; color:var(--text-muted); }
+    .yt-info .yt-seen { color:var(--green); font-weight:700; }
+
+    .video-empty { text-align:center; color:var(--text-muted); padding:48px 16px; font-size:.95rem; }
+    .load-error { background:rgba(230,57,70,.1); border:1px solid rgba(230,57,70,.4); color:#ff8a93;
+      border-radius:12px; padding:18px 20px; line-height:1.6; }
+
+    @media (max-width: 1000px) {
+      .yt-layout { grid-template-columns:1fr; }
+      .yt-thumb { flex-basis:150px; }
+    }
+    @media (max-width: 520px) {
+      .yt-title { font-size:1.15rem; }
+      .yt-thumb { flex-basis:124px; }
+    }
+  </style>
+</head>
+<body>
+<div class="top-bar">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+<header>
+  <div class="header-icon">&#x1F3AC;</div>
+  <div class="header-text">
+    <h1>Awareness Videos</h1>
+    <p>Learn how real scams work</p>
+  </div>
+</header>
+<div class="page wide">
+  <button class="back-btn" type="button" onclick="location.href='index.html'">&#8592; Home</button>
+
+  <div class="lib-head">
+    <div>
+      <div class="section-title">Awareness Video Library</div>
+      <div class="section-sub">Watch each short clip to the end, then test yourself in the Quiz and Scenarios.</div>
+    </div>
+    <div class="lib-count" id="libCount"></div>
+  </div>
+
+  <div id="videoRoot"></div>
+</div>
+<footer>Tech Day 2026 — Awareness videos</footer>
+
+<script>
+/* This page loads js/config.js and then js/app.js itself, then starts. */
+(function () {
+  var FILES = ['js/config.js', 'js/app.js'];
+
+  function load(i) {
+    if (i >= FILES.length) { start(); return; }
+    var s = document.createElement('script');
+    s.src = FILES[i];
+    s.onload = function () { load(i + 1); };
+    s.onerror = function () {
+      document.getElementById('videoRoot').innerHTML =
+        '<div class="load-error"><strong>Could not load ' + FILES[i] + '.</strong><br>' +
+        'Check that the file exists in the <code>js</code> folder next to <code>videos.html</code>, then refresh with Ctrl+F5.</div>';
+    };
+    document.head.appendChild(s);
+  }
+
+  function start() {
+    if (!TDApp.requireUser('videos.html')) { /* redirect */ }
+    document.getElementById('navMount').innerHTML = TDApp.navHtml('videos');
+    TDApp.renderUserChip(document.getElementById('userChip'));
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+    function fmt(sec) {
+      if (!isFinite(sec) || sec <= 0) return '';
+      var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    function vKey(v) { return v.file || v.id; }
+
+    var videos = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.videos) || [];
+    var root = document.getElementById('videoRoot');
+    var current = 0;
+    var durations = {};
+    var autoplayNext = true;
+
+    function isWatched(i) {
+      var w = TDApp.getProgress().videosWatched || {};
+      return !!w[vKey(videos[i])];
+    }
+    function watchedCount() {
+      var n = 0;
+      for (var i = 0; i < videos.length; i++) if (isWatched(i)) n++;
+      return n;
+    }
+    function updateCount() {
+      document.getElementById('libCount').textContent = watchedCount() + ' of ' + videos.length + ' watched';
+    }
+
+    function thumbHtml(v, i) {
+      var media;
+      if (v.poster) media = '<img src="' + esc(v.poster) + '" alt="">';
+      else if (v.file) media = '<video src="' + esc(v.file) + '#t=1" preload="metadata" muted playsinline data-thumb="' + i + '"></video>';
+      else if (v.id) media = '<img src="https://i.ytimg.com/vi/' + esc(v.id) + '/mqdefault.jpg" alt="">';
+      else media = '';
+      return '<div class="yt-thumb">' + media +
+        '<div class="yt-play">&#9654;</div>' +
+        '<span class="yt-dur" id="dur-' + i + '"' + (durations[i] ? '' : ' style="display:none"') + '>' + fmt(durations[i]) + '</span></div>';
+    }
+
+    function listHtml() {
+      return videos.map(function (v, i) {
+        var seen = isWatched(i);
+        return '<button type="button" class="yt-item' + (i === current ? ' active' : '') + '" data-i="' + i + '">' +
+          thumbHtml(v, i) +
+          '<div class="yt-info"><strong>' + esc(v.title) + '</strong>' +
+          '<small>' + esc(v.category || 'Awareness') + '</small>' +
+          '<small class="' + (seen ? 'yt-seen' : '') + '">' + (i === current ? 'Now playing' : (seen ? '\u2713 Watched' : 'Not watched yet')) + '</small></div>' +
+          '</button>';
+      }).join('');
+    }
+
+    function mainHtml() {
+      var v = videos[current];
+      var seen = isWatched(current);
+      var tips = (v.points && v.points.length)
+        ? '<ul>' + v.points.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' : '';
+      var player = v.file
+        ? '<video id="mainVideo" controls playsinline preload="metadata"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : '') +
+          ' src="' + esc(v.file) + '"></video>'
+        : '<iframe id="mainFrame" src="https://www.youtube-nocookie.com/embed/' + esc(v.id) + '" title="' + esc(v.title) +
+          '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>';
+      return '<div class="yt-player">' + player +
+          '<div class="yt-error" id="ytError"><div>Couldn\u2019t load <code>' + esc(v.file || '') + '</code>.<br>Check the file name and that it\u2019s inside the <code>videos</code> folder (MP4 / H.264 works best).</div></div>' +
+        '</div>' +
+        '<div class="yt-now">Now playing</div>' +
+        '<h2 class="yt-title">' + esc(v.title) + '</h2>' +
+        '<div class="yt-meta">' +
+          '<span class="yt-chip">' + esc(v.category || 'Awareness') + '</span>' +
+          '<span class="yt-chip" id="mainDur"' + (durations[current] ? '' : ' style="display:none"') + '>' + fmt(durations[current]) + '</span>' +
+          '<span class="yt-chip' + (seen ? ' ok' : '') + '" id="seenChip">' + (seen ? '\u2713 Watched' : 'Not watched yet') + '</span>' +
+        '</div>' +
+        '<div class="yt-actions">' +
+          '<button type="button" class="yt-btn ' + (seen ? 'done' : 'primary') + '" id="markBtn"' + (seen ? ' disabled' : '') + '>' + (seen ? 'Watched \u2713' : 'Mark as watched') + '</button>' +
+          '<label class="yt-toggle"><input type="checkbox" id="autoNext"' + (autoplayNext ? ' checked' : '') + '> Autoplay next video</label>' +
+        '</div>' +
+        '<div class="yt-desc"><h4>About this video</h4>' + esc(v.blurb) + tips + '</div>';
+    }
+
+    function render() {
+      if (!videos.length) {
+        root.innerHTML = '<div class="video-empty">No videos added yet. Add them in <code>js/config.js</code> under <code>videos</code>.</div>';
+        document.getElementById('libCount').textContent = '';
+        return;
+      }
+      root.innerHTML =
+        '<div class="yt-layout">' +
+          '<div class="yt-main" id="ytMain">' + mainHtml() + '</div>' +
+          '<aside class="yt-side"><h3>Up next &middot; ' + videos.length + ' videos</h3><div class="yt-list" id="ytList">' + listHtml() + '</div></aside>' +
+        '</div>';
+      updateCount();
+      wireMain();
+      wireList();
+      loadThumbDurations();
+    }
+
+    function wireList() {
+      document.querySelectorAll('.yt-item').forEach(function (b) {
+        b.addEventListener('click', function () { select(Number(b.dataset.i), true); });
+      });
+    }
+
+    function loadThumbDurations() {
+      document.querySelectorAll('video[data-thumb]').forEach(function (el) {
+        var i = Number(el.dataset.thumb);
+        var apply = function () {
+          if (el.duration && isFinite(el.duration)) {
+            durations[i] = el.duration;
+            var d = document.getElementById('dur-' + i);
+            if (d) { d.textContent = fmt(el.duration); d.style.display = ''; }
+            if (i === current) {
+              var md = document.getElementById('mainDur');
+              if (md) { md.textContent = fmt(el.duration); md.style.display = ''; }
+            }
+          }
+        };
+        if (el.readyState >= 1) apply(); else el.addEventListener('loadedmetadata', apply);
+      });
+    }
+
+    function wireMain() {
+      var mv = document.getElementById('mainVideo');
+      if (mv) {
+        mv.addEventListener('ended', function () {
+          markWatched(current, true);
+          if (autoplayNext && current < videos.length - 1) select(current + 1, true);
+        });
+        mv.addEventListener('timeupdate', function () {
+          if (mv.duration && mv.currentTime / mv.duration >= 0.9) markWatched(current, true);
+        });
+        mv.addEventListener('loadedmetadata', function () {
+          if (isFinite(mv.duration)) {
+            durations[current] = mv.duration;
+            var md = document.getElementById('mainDur');
+            if (md) { md.textContent = fmt(mv.duration); md.style.display = ''; }
+            var d = document.getElementById('dur-' + current);
+            if (d) { d.textContent = fmt(mv.duration); d.style.display = ''; }
+          }
+        });
+        mv.addEventListener('error', function () {
+          var e = document.getElementById('ytError'); if (e) e.classList.add('show');
+        });
+      }
+      var mb = document.getElementById('markBtn');
+      if (mb) mb.addEventListener('click', function () { markWatched(current, false); });
+      var an = document.getElementById('autoNext');
+      if (an) an.addEventListener('change', function () { autoplayNext = an.checked; });
+    }
+
+    function select(i, play) {
+      if (i === current && !play) return;
+      current = i;
+      try { history.replaceState(null, '', 'videos.html?v=' + (i + 1)); } catch (e) {}
+      document.getElementById('ytMain').innerHTML = mainHtml();
+      document.getElementById('ytList').innerHTML = listHtml();
+      wireMain();
+      wireList();
+      loadThumbDurations();
+      var mv = document.getElementById('mainVideo');
+      if (mv && play) { var p = mv.play(); if (p && p.catch) p.catch(function () {}); }
+      var top = document.querySelector('.yt-player');
+      if (top && window.innerWidth <= 1000) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function markWatched(i, auto) {
+      var key = vKey(videos[i]);
+      var prog = TDApp.getProgress();
+      var already = !!(prog.videosWatched && prog.videosWatched[key]);
+      if (already) return;
+      prog.videosWatched = prog.videosWatched || {};
+      prog.videosWatched[key] = new Date().toISOString();
+      TDApp.saveProgress({ videosWatched: prog.videosWatched });
+      TDApp.renderUserChip(document.getElementById('userChip'));
+      TDApp.publishScore();
+      if (i === current) {
+        var mb = document.getElementById('markBtn');
+        if (mb) { mb.textContent = 'Watched \u2713'; mb.className = 'yt-btn done'; mb.disabled = true; }
+        var chip = document.getElementById('seenChip');
+        if (chip) { chip.textContent = '\u2713 Watched'; chip.className = 'yt-chip ok'; }
+      }
+      document.getElementById('ytList').innerHTML = listHtml();
+      wireList();
+      loadThumbDurations();
+      updateCount();
+      TDApp.toast({ type: 'ok', icon: '\uD83C\uDFAC', title: 'Nice!',
+        message: auto ? 'Video finished — small awareness bonus added to your score.' : 'Video marked — small awareness bonus added to your score.', ms: 2800 });
+    }
+
+    var qv = parseInt(new URLSearchParams(location.search).get('v'), 10);
+    if (qv >= 1 && qv <= videos.length) current = qv - 1;
+    render();
+  }
+
+  load(0);
+})();
+</script>
+</body>
+</html>

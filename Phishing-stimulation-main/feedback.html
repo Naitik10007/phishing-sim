@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback — Tech Day 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="top-bar">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+
+<header>
+  <div class="header-icon">&#x1F4DD;</div>
+  <div class="header-text">
+    <h1>Feedback</h1>
+    <p>Help us improve the training</p>
+  </div>
+</header>
+
+<div class="page">
+  <a class="back-btn" href="index.html">&#8592; Home</a>
+  <div class="section-title">How was the training?</div>
+  <div class="section-sub">Your answers are saved with your name.</div>
+
+  <div class="login-card" style="max-width:520px;" id="fbForm">
+    <div class="login-field">
+      <label>Overall satisfaction</label>
+      <div class="stars" id="stars">
+        <button type="button" class="star-btn" data-v="1">★</button>
+        <button type="button" class="star-btn" data-v="2">★</button>
+        <button type="button" class="star-btn" data-v="3">★</button>
+        <button type="button" class="star-btn" data-v="4">★</button>
+        <button type="button" class="star-btn" data-v="5">★</button>
+      </div>
+    </div>
+    <div class="login-field">
+      <label for="useful">Was it useful?</label>
+      <select class="fb-select" id="useful">
+        <option value="">Choose…</option>
+        <option>Very useful</option>
+        <option>Somewhat useful</option>
+        <option>Not sure</option>
+        <option>Not useful</option>
+      </select>
+    </div>
+    <div class="login-field">
+      <label for="clear">Were the tips easy to understand?</label>
+      <select class="fb-select" id="clear">
+        <option value="">Choose…</option>
+        <option>Very clear</option>
+        <option>Mostly clear</option>
+        <option>A bit confusing</option>
+        <option>Hard to follow</option>
+      </select>
+    </div>
+    <div class="login-field">
+      <label for="suggest">Suggestions</label>
+      <textarea class="fb-textarea" id="suggest" placeholder="What should we add or change?"></textarea>
+    </div>
+    <div class="login-error" id="fbErr">Please pick a star rating.</div>
+    <button class="login-btn" type="button" id="fbSubmit">Submit feedback</button>
+  </div>
+
+  <div class="login-card" id="fbThanks" style="display:none;max-width:520px;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:8px;">🙏</div>
+    <h3>Thanks!</h3>
+    <p class="login-sub">Your feedback was saved.</p>
+    <a class="home-btn" href="index.html">Back home</a>
+  </div>
+</div>
+
+<footer>Tech Day 2026</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+if (!TDApp.requireUser('feedback.html')) { /* redirect */ }
+
+document.getElementById('navMount').innerHTML = TDApp.navHtml('feedback');
+TDApp.renderUserChip(document.getElementById('userChip'));
+
+var rating = 0;
+document.querySelectorAll('.star-btn').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    rating = Number(btn.dataset.v);
+    document.querySelectorAll('.star-btn').forEach(function (b) {
+      b.classList.toggle('on', Number(b.dataset.v) <= rating);
+    });
+  });
+});
+
+document.getElementById('fbSubmit').addEventListener('click', function () {
+  var err = document.getElementById('fbErr');
+  if (!rating) { err.classList.add('show'); return; }
+  err.classList.remove('show');
+  var btn = document.getElementById('fbSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  TDApp.submitFeedback({
+    rating: rating,
+    useful: document.getElementById('useful').value,
+    clear: document.getElementById('clear').value,
+    suggest: document.getElementById('suggest').value
+  }).then(function () {
+    document.getElementById('fbForm').style.display = 'none';
+    document.getElementById('fbThanks').style.display = 'block';
+    TDApp.toast({ type: 'ok', icon: '✅', title: 'Feedback sent', message: 'Thanks for helping improve the training.', ms: 3000 });
+  });
+});
+</script>
+</body>
+</html>

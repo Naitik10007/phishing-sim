@@ -1,0 +1,2319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phishing Simulation — Tech Day 2026</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ══════════════════════════════════════════
+   KEYFRAMES
+══════════════════════════════════════════ */
+@keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+@keyframes fadeOut   { from{opacity:1} to{opacity:0;pointer-events:none} }
+@keyframes slideUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideInR  { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
+@keyframes popIn     { from{opacity:0;transform:scale(.88) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
+@keyframes bobble    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+@keyframes blink     { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes scanSwipe { 0%{top:-4px;opacity:.5} 100%{top:110%;opacity:0} }
+@keyframes xpFloat   { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-55px) scale(1.3)} }
+@keyframes trophySpin{ from{transform:rotate(-20deg) scale(.5)} to{transform:rotate(0) scale(1)} }
+@keyframes dotBounce { 0%{transform:scale(1)} 45%{transform:scale(1.55)} 100%{transform:scale(1.2)} }
+@keyframes newMailPop{ 0%{background:#1e304f;transform:translateX(-6px)} 100%{background:#1e2535;transform:translateX(0)} }
+@keyframes loadBar   { 0%{width:0%} 40%{width:55%} 70%{width:82%} 100%{width:100%} }
+@keyframes msgShake  {
+  0%,100%{transform:translateX(0)}
+  15%{transform:translateX(-6px) rotate(-.5deg)}
+  30%{transform:translateX(6px) rotate(.5deg)}
+  45%{transform:translateX(-4px)}
+  60%{transform:translateX(4px)}
+  75%{transform:translateX(-2px)}
+}
+@keyframes msgFlash  {
+  0%{box-shadow:0 0 0 0 rgba(230,57,70,.6)}
+  40%{box-shadow:0 0 0 12px rgba(230,57,70,0), inset 0 0 24px rgba(230,57,70,.25)}
+  100%{box-shadow:0 0 0 0 rgba(230,57,70,0)}
+}
+@keyframes flagPulse {
+  0%,100%{background:rgba(230,57,70,.14)}
+  50%{background:rgba(230,57,70,.32)}
+}
+@keyframes tapRipple {
+  0%{transform:scale(.6);opacity:.55}
+  100%{transform:scale(2.2);opacity:0}
+}
+@keyframes warnGlow {
+  0%,100%{filter:brightness(1)}
+  50%{filter:brightness(1.15)}
+}
+
+/* ══════════════════════════════════════════
+   INTRO
+══════════════════════════════════════════ */
+#introScreen{
+  position:fixed;inset:0;z-index:200;background:var(--navy);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;text-align:center;animation:fadeIn .4s ease;
+}
+.intro-icon { font-size:5rem;margin-bottom:16px;animation:bobble 2s ease-in-out infinite; }
+.intro-title{
+  font-size:2.2rem;font-weight:900;margin-bottom:10px;
+  background:linear-gradient(90deg,var(--orange),var(--red));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.intro-sub  { color:var(--text-muted);max-width:500px;margin:0 auto 32px;font-size:.95rem;line-height:1.6; }
+.intro-rules{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+  gap:12px;max-width:620px;margin:0 auto 36px;
+}
+.intro-rule { background:var(--navy-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 12px;font-size:.83rem;color:var(--text-muted);line-height:1.5; }
+.intro-rule span { font-size:1.6rem;display:block;margin-bottom:8px; }
+.start-btn{
+  padding:14px 44px;background:linear-gradient(90deg,var(--orange),var(--red));
+  color:#fff;border:none;border-radius:10px;font-size:1.05rem;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 20px rgba(244,131,31,.4);transition:transform .15s,opacity .15s;
+}
+.start-btn:hover{transform:translateY(-2px);opacity:.9;}
+
+/* ══════════════════════════════════════════
+   HUD
+══════════════════════════════════════════ */
+.hud{
+  position:sticky;top:66px;z-index:90;
+  background:rgba(11,18,32,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  padding:8px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.hud-label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
+.hud-val  {font-size:1rem;font-weight:800;}
+.hud-sep  {width:1px;height:28px;background:var(--border);}
+.hud-xp-bar-wrap{flex:1;min-width:80px;background:var(--navy-light);border-radius:99px;height:6px;overflow:hidden;}
+.hud-xp-bar{height:100%;background:linear-gradient(90deg,var(--orange),var(--red));border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1);width:0%;}
+.hud-streak{font-size:.8rem;font-weight:700;color:var(--gold);opacity:0;transition:opacity .3s;}
+.hud-streak.active{opacity:1;}
+
+/* ══════════════════════════════════════════
+   SCENARIO STRIP
+══════════════════════════════════════════ */
+.scenario-strip{display:flex;gap:10px;padding:16px 0 10px;overflow-x:auto;}
+.s-card{
+  flex-shrink:0;background:var(--navy-card);border:2px solid var(--border);
+  border-radius:12px;padding:12px 16px;cursor:pointer;transition:all .2s;min-width:150px;text-align:center;
+}
+.s-card .s-icon{font-size:1.8rem;display:block;margin-bottom:5px;}
+.s-card .s-name{font-size:.8rem;font-weight:600;}
+.s-card .s-prog{font-size:.68rem;color:var(--text-muted);margin-top:3px;}
+.s-card.active {border-color:var(--accent);background:rgba(255,107,53,.08);}
+.s-card.done   {border-color:var(--green);}
+.s-card:hover:not(.active){border-color:var(--text-muted);}
+
+/* ══════════════════════════════════════════
+   SCENARIO SHELL
+══════════════════════════════════════════ */
+.sim-scenario{display:none;opacity:0;position:relative;}
+.sim-scenario.entering{display:block;animation:slideInR .32s cubic-bezier(.4,0,.2,1) forwards;}
+.sim-scenario.active  {display:block;opacity:1;}
+
+/* ══════════════════════════════════════════
+   MISSION BAR
+══════════════════════════════════════════ */
+.mission-bar{
+  background:linear-gradient(135deg,var(--navy-card),rgba(26,45,79,.8));
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 20px;margin-bottom:14px;
+  display:flex;align-items:center;gap:14px;
+}
+.mission-num{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,var(--orange),var(--red));
+  display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:900;
+}
+.mission-info h3{font-size:.95rem;font-weight:700;margin-bottom:2px;}
+.mission-info p {font-size:.8rem;color:var(--text-muted);}
+
+/* ══════════════════════════════════════════
+   FLAG TRACKER
+══════════════════════════════════════════ */
+.flag-tracker{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
+.flag-dot{
+  width:26px;height:26px;border-radius:50%;
+  border:2px solid var(--border);background:var(--navy-light);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;color:var(--text-muted);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+}
+.flag-dot.found{
+  border-color:var(--red);background:rgba(230,57,70,.22);
+  color:var(--red);animation:dotBounce .4s ease;
+  box-shadow:0 0 8px rgba(230,57,70,.45);
+}
+.flag-tracker-label{font-size:.75rem;color:var(--text-muted);margin-left:2px;}
+
+/* ══════════════════════════════════════════
+   RED FLAGS — invisible until found
+══════════════════════════════════════════ */
+.red-flag{cursor:pointer;border-radius:3px;padding:1px 2px;transition:background .15s,outline .15s;}
+.red-flag::after{content:none !important;}
+.red-flag:not(.found-flag):not(.revealed){background:transparent;animation:none;}
+.red-flag.found-flag,.red-flag.revealed{background:rgba(230,57,70,.14);outline:2px solid rgba(230,57,70,.45);animation:flagPulse 1.2s ease 2;}
+.red-flag.just-tapped{animation:msgFlash .55s ease;}
+
+/* Clickable whole messages (debit / hacked bubbles) */
+.tap-msg{
+  cursor:pointer;transition:transform .2s,box-shadow .2s;
+  position:relative;
+}
+.tap-msg:hover{transform:scale(1.015);}
+.tap-msg.msg-react{
+  animation:msgShake .5s ease, msgFlash .6s ease;
+}
+.tap-msg.investigating{
+  outline:2px dashed rgba(244,131,31,.55);
+  outline-offset:3px;
+  animation:warnGlow 1.4s ease infinite;
+}
+.tap-hint{
+  display:none;font-size:.68rem;color:var(--orange);margin-top:6px;
+  padding:6px 10px;border-radius:8px;background:rgba(244,131,31,.1);
+  border:1px solid rgba(244,131,31,.25);line-height:1.4;
+  animation:slideUp .3s ease;
+}
+.tap-msg.investigating .tap-hint{display:block;}
+.tap-ripple{
+  position:absolute;width:40px;height:40px;border-radius:50%;
+  background:rgba(244,131,31,.35);pointer-events:none;
+  animation:tapRipple .55s ease forwards;margin-left:-20px;margin-top:-20px;
+}
+
+/* ══════════════════════════════════════════
+   EMAIL CLIENT — two-panel layout
+══════════════════════════════════════════ */
+.client-shell{
+  border:1px solid #222;border-radius:var(--radius);overflow:hidden;
+  background:#191919;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;
+}
+.client-titlebar{
+  background:#242424;padding:8px 14px;
+  display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid #2e2e2e;
+}
+.client-titlebar-dots{display:flex;gap:5px;}
+.chrome-dot{width:12px;height:12px;border-radius:50%;}
+.chrome-dot.red{background:#ff5f57;}
+.chrome-dot.yel{background:#febc2e;}
+.chrome-dot.grn{background:#28c840;}
+.client-app-title{font-size:.72rem;color:#555;margin-left:8px;}
+
+.client-body{display:flex;min-height:480px;}
+
+/* ── sidebar ── */
+.client-sidebar{
+  width:220px;flex-shrink:0;background:#1c1c1c;
+  border-right:1px solid #222;display:flex;flex-direction:column;
+}
+.client-sidebar-header{
+  padding:10px 14px;border-bottom:1px solid #262626;
+  font-size:.7rem;color:#555;letter-spacing:.8px;text-transform:uppercase;
+}
+.sidebar-folder{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 14px;font-size:.8rem;color:#888;cursor:pointer;
+  transition:background .15s;
+}
+.sidebar-folder:hover{background:#232323;}
+.sidebar-folder.active{background:#1e2d4a;color:#adc8ff;}
+.sidebar-folder .sf-icon{font-size:1rem;}
+.sidebar-folder .sf-badge{
+  margin-left:auto;background:var(--orange);color:#fff;
+  font-size:.6rem;font-weight:700;border-radius:99px;padding:1px 6px;
+}
+
+/* ── inbox list panel ── */
+.inbox-panel{
+  flex:1;min-width:0;border-right:1px solid #222;
+  display:flex;flex-direction:column;
+  max-width:280px;
+}
+.inbox-panel-header{
+  padding:10px 14px;border-bottom:1px solid #262626;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.inbox-panel-title{font-size:.78rem;font-weight:700;color:#bbb;}
+.inbox-search-bar{
+  margin:8px 10px;background:#222;border:1px solid #2e2e2e;
+  border-radius:6px;padding:5px 10px;font-size:.72rem;color:#666;
+  display:flex;align-items:center;gap:6px;
+}
+.inbox-list{flex:1;overflow-y:auto;}
+
+/* inbox row */
+.inbox-row{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 12px;border-bottom:1px solid #222;
+  cursor:pointer;transition:background .12s;position:relative;
+}
+.inbox-row:hover{background:#212121;}
+.inbox-row.selected{background:#1a2d4a;}
+.inbox-row.unread{background:#1c2230;}
+.inbox-row.unread .ir-sender {font-weight:700;color:#ddd;}
+.inbox-row.unread .ir-subj   {color:#bbb;font-weight:500;}
+.inbox-row.unread::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:3px;background:linear-gradient(180deg,var(--orange),var(--red));
+}
+.inbox-row.new-arrive{animation:newMailPop .7s ease both;}
+
+.ir-avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;font-weight:700;color:#fff;margin-top:1px;
+}
+.ir-right{flex:1;min-width:0;}
+.ir-top{display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.ir-sender{font-size:.78rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ir-time  {font-size:.65rem;color:#555;flex-shrink:0;}
+.ir-subj  {font-size:.74rem;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.ir-preview{font-size:.68rem;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.ir-unread-dot{position:absolute;right:10px;bottom:10px;width:7px;height:7px;border-radius:50%;background:var(--orange);}
+
+/* ── reading pane ── */
+.reading-pane{
+  flex:1;min-width:0;display:flex;flex-direction:column;
+  background:#1c1c1c;
+}
+.reading-pane-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;color:#444;font-size:.85rem;gap:10px;
+}
+.reading-pane-empty span{font-size:2.5rem;}
+
+.email-view{display:none;flex-direction:column;height:100%;animation:slideInR .28s ease both;}
+.email-view.active{display:flex;}
+
+.email-toolbar{
+  padding:10px 18px;border-bottom:1px solid #222;
+  display:flex;align-items:center;gap:10px;
+}
+.etb-btn{
+  background:#2a2a2a;border:1px solid #333;border-radius:5px;
+  padding:4px 10px;font-size:.72rem;color:#888;cursor:pointer;
+  transition:background .15s;
+}
+.etb-btn:hover{background:#333;color:#bbb;}
+
+.email-header-area{padding:16px 20px 12px;border-bottom:1px solid #222;}
+.email-subject-line{font-size:1.05rem;font-weight:700;color:#eee;margin-bottom:10px;line-height:1.4;}
+.email-meta-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:5px;}
+.meta-avatar{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;
+}
+.meta-info{flex:1;}
+.meta-from{font-size:.82rem;color:#ccc;}
+.meta-addr{font-size:.74rem;color:#666;margin-top:1px;}
+.meta-date{font-size:.72rem;color:#555;margin-top:2px;}
+.meta-to  {font-size:.72rem;color:#666;margin-top:3px;}
+
+.email-body-area{
+  flex:1;overflow-y:auto;padding:20px 22px;
+  font-family:'Segoe UI',sans-serif;font-size:.88rem;line-height:1.75;color:#ccc;
+}
+.email-body-area p{margin-bottom:10px;}
+
+/* ══════════════════════════════════════════
+   LINK + ATTACHMENT ELEMENTS
+══════════════════════════════════════════ */
+.link-elem{
+  color:#4a9eff;text-decoration:underline;
+  cursor:pointer;position:relative;display:inline-block;
+}
+.link-statusbar{
+  position:fixed;bottom:0;left:0;right:0;height:20px;
+  background:#111;border-top:1px solid #2a2a2a;
+  font-size:.7rem;color:#666;padding:0 12px;
+  display:flex;align-items:center;z-index:100;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.link-statusbar.show{opacity:1;}
+.link-status-real{color:var(--red);margin-left:6px;font-weight:600;}
+
+.attachment-elem{
+  background:#252525;display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:6px;font-size:.83rem;
+  cursor:pointer;transition:background .2s,transform .15s;
+  border:1px solid #2e2e2e;
+}
+.attachment-elem:hover{background:#2e1a1a;border-color:rgba(230,57,70,.4);transform:scale(1.02);}
+.attachment-elem .att-warn{font-size:.68rem;color:var(--red);opacity:0;transition:opacity .2s;margin-left:4px;}
+.attachment-elem:hover .att-warn{opacity:1;}
+
+/* subject typewriter cursor */
+.typing-cursor{border-right:2px solid var(--orange);animation:blink .65s step-end infinite;}
+
+/* scanline on open */
+.reading-pane-scan::after{
+  content:'';position:absolute;left:0;right:0;height:2px;
+  background:rgba(255,107,53,.18);animation:scanSwipe .7s linear;
+  pointer-events:none;z-index:5;
+}
+.reading-pane{position:relative;}
+
+/* ══════════════════════════════════════════
+   BROWSER MOCK
+══════════════════════════════════════════ */
+.browser-mock{border:1px solid #222;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+.browser-chrome{
+  background:#2a2a2a;padding:8px 12px;
+  display:flex;align-items:center;gap:10px;border-bottom:1px solid #333;
+}
+.browser-dots{display:flex;gap:5px;}
+.browser-address{
+  flex:1;background:#1a1a1a;border-radius:20px;padding:5px 14px;
+  font-size:.76rem;color:#aaa;display:flex;align-items:center;gap:6px;
+  border:1px solid #3a3a3a;font-family:monospace;overflow:hidden;
+}
+.browser-load-bar{height:3px;background:var(--navy-light);}
+.browser-load-inner{
+  height:100%;background:linear-gradient(90deg,var(--orange),var(--red));
+  width:0%;transition:width .6s ease;
+}
+.browser-body{background:#f0f4f8;}
+.bank-page{
+  min-height:400px;background:#f0f4f8;display:flex;flex-direction:column;
+  align-items:center;padding:32px 16px;font-family:'Segoe UI',sans-serif;
+  opacity:0;transition:opacity .5s .4s;
+}
+.bank-page.loaded{opacity:1;}
+.bank-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.bank-logo-icon{
+  width:40px;height:40px;background:linear-gradient(135deg,#0047ab,#0066cc);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:1.2rem;font-weight:800;
+}
+.bank-logo-name{font-size:1.3rem;font-weight:700;color:#0047ab;}
+.bank-login-card{
+  background:#fff;border-radius:10px;padding:28px 32px;
+  width:100%;max-width:380px;box-shadow:0 2px 16px rgba(0,0,0,.1);
+}
+.bank-login-card h3{font-size:1.05rem;font-weight:700;color:#111;margin-bottom:18px;}
+.bank-field{margin-bottom:14px;}
+.bank-field label{display:block;font-size:.78rem;color:#555;margin-bottom:4px;font-weight:600;}
+.bank-field input{
+  width:100%;padding:9px 12px;border:1.5px solid #ccc;border-radius:6px;
+  font-size:.86rem;color:#222;background:#fff;outline:none;
+}
+.bank-submit{
+  width:100%;padding:11px;background:linear-gradient(135deg,#0047ab,#0066cc);
+  color:#fff;border:none;border-radius:6px;font-size:.93rem;font-weight:600;cursor:pointer;margin-top:4px;
+}
+.bank-fine-print{font-size:.7rem;color:#999;text-align:center;margin-top:14px;line-height:1.5;}
+
+/* ══════════════════════════════════════════
+   REVEAL PANEL
+══════════════════════════════════════════ */
+#revealPanel{
+  position:fixed;z-index:9999;
+  background:linear-gradient(135deg,#180404,#1f0808);
+  border:2px solid var(--red);border-radius:14px;
+  padding:16px 18px;max-width:320px;
+  box-shadow:0 12px 40px rgba(0,0,0,.85),0 0 28px rgba(230,57,70,.1);
+  display:none;pointer-events:none;
+}
+#revealPanel.show{display:block;animation:popIn .2s cubic-bezier(.4,0,.2,1);}
+.rp-badge{
+  display:inline-block;
+  background:linear-gradient(90deg,var(--orange),var(--red));
+  color:#fff;font-size:.63rem;font-weight:800;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:2px 10px;border-radius:20px;margin-bottom:10px;
+}
+.rp-badge.caught{background:linear-gradient(90deg,#06d6a0,#0ea5e9);}
+.rp-title{font-size:.93rem;font-weight:800;color:#ff8a93;margin-bottom:6px;}
+.rp-body {font-size:.81rem;color:#ffcdd2;line-height:1.55;}
+.rp-xp   {margin-top:10px;font-size:.74rem;font-weight:700;color:var(--gold);}
+
+/* ══════════════════════════════════════════
+   XP + PARTICLES
+══════════════════════════════════════════ */
+.xp-pop{position:fixed;font-size:1.1rem;font-weight:900;color:var(--gold);pointer-events:none;z-index:9998;animation:xpFloat 1.1s ease-out forwards;}
+.particle{position:fixed;width:7px;height:7px;border-radius:50%;pointer-events:none;z-index:9997;}
+
+/* ══════════════════════════════════════════
+   SCENARIO COMPLETE
+══════════════════════════════════════════ */
+.scenario-complete{
+  position:absolute;inset:0;background:rgba(11,18,32,.93);border-radius:var(--radius);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:32px;z-index:50;
+  opacity:0;pointer-events:none;transition:opacity .4s;
+}
+.scenario-complete.show{opacity:1;pointer-events:all;}
+.sc-trophy{font-size:4rem;margin-bottom:12px;animation:trophySpin .55s ease;}
+.sc-title{
+  font-size:1.55rem;font-weight:900;margin-bottom:8px;
+  background:linear-gradient(90deg,var(--gold),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.sc-sub   {color:var(--text-muted);font-size:.88rem;margin-bottom:22px;}
+.sc-xp-earned{font-size:1.05rem;font-weight:800;color:var(--gold);margin-bottom:18px;}
+.sc-next-btn{
+  padding:12px 28px;background:linear-gradient(90deg,var(--orange),var(--red));
+  color:#fff;border:none;border-radius:9px;font-size:.93rem;font-weight:700;cursor:pointer;
+  transition:transform .15s,opacity .15s;
+}
+.sc-next-btn:hover{transform:translateY(-2px);opacity:.9;}
+
+/* ══════════════════════════════════════════
+   FINAL RESULTS
+══════════════════════════════════════════ */
+#finalResults{display:none;text-align:center;padding:48px 24px;animation:fadeIn .5s ease;}
+#finalResults.show{display:block;}
+.fr-trophy{font-size:5rem;display:block;margin-bottom:16px;}
+.fr-title{
+  font-size:2rem;font-weight:900;margin-bottom:8px;
+  background:linear-gradient(90deg,var(--gold),var(--orange));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.fr-sub   {color:var(--text-muted);margin-bottom:28px;}
+.fr-stats {display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;}
+.fr-stat  {background:var(--navy-card);border:1px solid var(--border);border-radius:10px;padding:16px 24px;min-width:100px;}
+.fr-stat-val{font-size:1.8rem;font-weight:900;color:var(--orange);}
+.fr-stat-lbl{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px;}
+.fr-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.fr-replay-btn{
+  padding:12px 30px;background:linear-gradient(90deg,var(--orange),var(--red));
+  color:#fff;border:none;border-radius:9px;font-size:.93rem;font-weight:700;cursor:pointer;transition:opacity .15s;
+}
+.fr-replay-btn:hover{opacity:.88;}
+
+/* misc */
+.reveal-all-btn{font-size:.8rem;margin-bottom:14px;}
+.game-area{position:relative;}
+.link-statusbar-wrap{position:fixed;bottom:0;left:0;right:0;z-index:100;pointer-events:none;}
+
+/* ══════════════════════════════════════════
+   SMS PHONE MOCK (Scenario 3)
+══════════════════════════════════════════ */
+.sms-phone-wrap{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;}
+.sms-phone{
+  width:320px;flex-shrink:0;background:#1a1a1a;border-radius:44px;
+  border:8px solid #2e2e2e;box-shadow:0 12px 40px rgba(0,0,0,.7),inset 0 0 0 2px #111;
+  overflow:hidden;position:relative;
+}
+.sms-phone-notch{
+  width:100px;height:24px;background:#111;border-radius:0 0 16px 16px;
+  margin:0 auto;position:relative;z-index:2;
+}
+.sms-phone-status{
+  display:flex;align-items:center;padding:4px 18px 0;
+  font-size:.65rem;color:#888;background:#111;
+}
+.sms-header{
+  background:#1c1c1e;border-bottom:1px solid #2a2a2a;
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+}
+.sms-back,.sms-more{font-size:1.1rem;color:#4a9eff;cursor:pointer;}
+.sms-contact-info{display:flex;align-items:center;gap:8px;flex:1;}
+.sms-avatar{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;font-weight:700;color:#fff;flex-shrink:0;
+}
+.sms-contact-name{font-size:.82rem;font-weight:600;color:#eee;}
+.sms-contact-sub{font-size:.65rem;color:#888;}
+
+.sms-thread{padding:12px 12px 6px;display:flex;flex-direction:column;gap:10px;min-height:340px;background:#111;}
+.sms-bubble-wrap{display:flex;flex-direction:column;}
+.sms-bubble-wrap.left{align-items:flex-start;}
+.sms-bubble{
+  max-width:85%;padding:10px 14px;border-radius:18px 18px 18px 4px;
+  font-size:.8rem;line-height:1.55;color:#eee;
+}
+.sms-bubble.safe,.sms-bubble.phish{background:#1e3a5f;}
+.sms-bubble.phish.found-look,.sms-bubble.phish.has-finds{background:#2a1218;border:1px solid rgba(230,57,70,.35);}
+.sms-time{font-size:.62rem;color:#555;margin-top:3px;padding-left:4px;}
+.sms-link{color:#4a9eff;text-decoration:underline;cursor:pointer;}
+.sms-thread .tap-msg .sms-bubble{transition:background .35s,border-color .35s;}
+
+.sms-input-bar{
+  background:#1c1c1e;border-top:1px solid #2a2a2a;
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+}
+.sms-input-field{
+  flex:1;background:#2a2a2a;border-radius:20px;padding:8px 14px;
+  font-size:.75rem;color:#555;
+}
+.sms-send-btn{
+  width:30px;height:30px;background:#4a9eff;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.9rem;color:#fff;cursor:pointer;
+}
+
+.sms-legend{
+  flex:1;min-width:240px;background:var(--navy-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;
+}
+.sms-legend h4{font-size:.9rem;font-weight:700;margin-bottom:12px;color:var(--orange);}
+.sms-legend ul{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.sms-legend li{font-size:.82rem;color:var(--text-muted);}
+.sms-legend-tip{font-size:.8rem;color:var(--text-muted);background:rgba(255,107,53,.07);border:1px solid rgba(255,107,53,.2);border-radius:8px;padding:10px 12px;line-height:1.5;}
+
+/* ══════════════════════════════════════════
+   INSTAGRAM MOCK (Scenario 4)
+══════════════════════════════════════════ */
+.ig-wrap{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;}
+.ig-phone{
+  width:300px;flex-shrink:0;background:#000;border-radius:40px;
+  border:8px solid #1a1a1a;box-shadow:0 12px 40px rgba(0,0,0,.7);overflow:hidden;
+}
+.ig-phone-notch{width:90px;height:22px;background:#111;border-radius:0 0 14px 14px;margin:0 auto;}
+.ig-dm-header{
+  background:#000;border-bottom:1px solid #1a1a1a;
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+}
+.ig-back{font-size:1.1rem;color:#eee;cursor:pointer;}
+.ig-dm-contact{display:flex;align-items:center;gap:8px;flex:1;}
+.ig-avatar-ring{width:36px;height:36px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4);}
+.ig-avatar{width:100%;height:100%;border-radius:50%;background:#222;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;}
+.ig-contact-name{font-size:.8rem;font-weight:700;color:#eee;}
+.ig-contact-sub{font-size:.64rem;color:#888;}
+
+.ig-thread{background:#000;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:260px;}
+.ig-bubble-wrap{display:flex;flex-direction:column;align-items:flex-start;}
+.ig-bubble{
+  background:#1a1a1a;border-radius:18px 18px 18px 4px;
+  padding:10px 14px;max-width:88%;font-size:.78rem;color:#eee;line-height:1.55;
+}
+.ig-time{font-size:.62rem;color:#555;margin-top:3px;padding-left:4px;}
+.ig-reply-bar{
+  background:#000;border-top:1px solid #1a1a1a;
+  display:flex;align-items:center;padding:8px 12px;gap:8px;
+}
+.ig-reply-input{
+  flex:1;border:1px solid #333;border-radius:20px;padding:8px 14px;
+  font-size:.74rem;color:#555;background:#111;
+}
+
+.ig-browser-col{flex:1;min-width:260px;display:flex;flex-direction:column;gap:12px;}
+.ig-fake-page{
+  background:#fafafa;padding:28px 16px;display:flex;flex-direction:column;align-items:center;
+  font-family:'Segoe UI',sans-serif;
+}
+.ig-fake-logo{
+  display:flex;align-items:center;gap:8px;font-size:1.4rem;font-weight:700;color:#111;margin-bottom:20px;
+}
+.ig-fake-card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:24px;width:100%;max-width:340px;}
+.ig-fake-field{margin-bottom:12px;}
+.ig-fake-field label{display:block;font-size:.76rem;color:#666;margin-bottom:4px;font-weight:600;}
+.ig-fake-field input{width:100%;padding:8px 10px;border:1.5px solid #ccc;border-radius:6px;font-size:.84rem;color:#222;background:#fff;outline:none;}
+.ig-fake-btn{width:100%;padding:10px;background:linear-gradient(135deg,#f58529,#dd2a7b);color:#fff;border:none;border-radius:6px;font-size:.9rem;font-weight:600;cursor:pointer;margin-top:4px;}
+.ig-browser-tip{background:rgba(230,57,70,.08);border:1px solid rgba(230,57,70,.25);border-radius:8px;padding:12px 14px;font-size:.8rem;color:#ff8a93;display:flex;gap:10px;align-items:flex-start;line-height:1.5;}
+.ig-browser-tip span{font-size:1.2rem;flex-shrink:0;}
+
+/* ══════════════════════════════════════════
+   QR CODE MOCK (Scenario 5)
+══════════════════════════════════════════ */
+.qr-scenarios-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:16px;}
+.qr-card{
+  background:var(--navy-card);border:2px solid var(--border);
+  border-radius:var(--radius);padding:18px;position:relative;display:flex;flex-direction:column;gap:10px;
+}
+.scam-qr{border-color:var(--border);background:var(--navy-card);}
+.qr-card-badge{
+  display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  padding:3px 10px;border-radius:20px;align-self:flex-start;
+}
+.safe-badge,.scam-badge{background:rgba(136,153,170,.12);color:var(--text-muted);border:1px solid var(--border);}
+.qr-card-title{font-size:.88rem;font-weight:700;}
+.qr-card.scam-qr{border-color:var(--border);background:var(--navy-card);}
+.qr-card.scam-qr.exposed{border-color:rgba(230,57,70,.45);background:rgba(26,4,4,.6);}
+
+.qr-mock{
+  width:110px;height:110px;background:#fff;border-radius:8px;padding:10px;
+  display:flex;align-items:center;justify-content:center;align-self:center;position:relative;
+}
+.scam-qr-mock{border:3px solid #ccc;}
+.qr-card.exposed .scam-qr-mock{border-color:var(--red);}
+.qr-pattern{
+  width:100%;height:100%;background-image:
+    linear-gradient(#333 1px,transparent 1px),
+    linear-gradient(90deg,#333 1px,transparent 1px),
+    linear-gradient(#333 2px,transparent 2px),
+    linear-gradient(90deg,#333 2px,transparent 2px);
+  background-size:8px 8px,8px 8px,40px 40px,40px 40px;
+  background-color:#fff;
+}
+.qr-sticker-label{
+  position:absolute;inset:0;background:rgba(230,57,70,.88);
+  display:flex;align-items:center;justify-content:center;
+  text-align:center;font-size:.6rem;font-weight:800;color:#fff;
+  border-radius:5px;letter-spacing:.5px;
+}
+.qr-url-preview{
+  font-family:monospace;font-size:.76rem;padding:6px 10px;
+  border-radius:6px;border:1px solid var(--border);word-break:break-all;
+}
+.safe-url,.scam-url{background:rgba(136,153,170,.06);color:var(--text-muted);border-color:var(--border);}
+.qr-card.exposed .scam-url{background:rgba(230,57,70,.06);color:#ff8a93;border-color:rgba(230,57,70,.3);}
+.qr-card-desc{font-size:.78rem;color:var(--text-muted);line-height:1.5;}
+.qr-flag-list{display:flex;flex-direction:column;gap:8px;}
+.qr-flag-item{font-size:.8rem;color:var(--text-muted);background:rgba(136,153,170,.07);border:1px solid var(--border);border-radius:6px;padding:8px 10px;line-height:1.45;cursor:pointer;transition:all .25s;}
+.qr-flag-item:has(.found-flag),.qr-flag-item:has(.revealed){color:#ffcdd2;background:rgba(230,57,70,.07);border-color:rgba(230,57,70,.15);}
+
+.qr-learn-bar{
+  background:var(--navy-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 20px;
+}
+.qr-learn-bar h4{font-size:.9rem;font-weight:700;color:var(--orange);margin-bottom:12px;}
+.qr-rules-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;}
+.qr-rule{
+  background:var(--navy-light);border:1px solid var(--border);border-radius:8px;
+  padding:12px;font-size:.78rem;color:var(--text-muted);line-height:1.5;
+}
+.qr-rule span{font-size:1.4rem;display:block;margin-bottom:6px;}
+
+/* ══════════════════════════════════════════
+   REPORT BUTTON STYLE
+══════════════════════════════════════════ */
+.etb-report{
+  background:#2a1a1a!important;border-color:rgba(230,57,70,.45)!important;
+  color:var(--red)!important;font-weight:700;
+  transition:background .15s,border-color .15s;
+}
+.etb-report:hover{background:#3d1515!important;border-color:var(--red)!important;}
+.etb-report.reported-ok{background:#0f2a1a!important;border-color:rgba(6,214,160,.45)!important;color:var(--green)!important;cursor:default;}
+
+/* ══════════════════════════════════════════
+   REPORT MODAL
+══════════════════════════════════════════ */
+#reportModal{
+  position:fixed;inset:0;z-index:10000;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+#reportModal.show{opacity:1;pointer-events:all;}
+.rm-card{
+  background:var(--navy-card);border:2px solid var(--border);
+  border-radius:16px;padding:32px 28px;max-width:420px;width:90%;
+  text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.8);
+  transform:scale(.92);transition:transform .25s cubic-bezier(.4,0,.2,1);
+}
+#reportModal.show .rm-card{transform:scale(1);}
+.rm-icon{font-size:3.5rem;margin-bottom:12px;display:block;}
+.rm-title{font-size:1.2rem;font-weight:800;margin-bottom:8px;}
+.rm-body{font-size:.88rem;color:var(--text-muted);line-height:1.6;margin-bottom:20px;}
+.rm-tip{
+  font-size:.8rem;background:rgba(255,209,102,.07);border:1px solid rgba(255,209,102,.2);
+  border-radius:8px;padding:10px 14px;color:var(--gold);margin-bottom:22px;line-height:1.5;
+  text-align:left;
+}
+.rm-btn{
+  padding:11px 28px;border:none;border-radius:9px;font-size:.92rem;
+  font-weight:700;cursor:pointer;transition:opacity .15s;
+}
+.rm-btn-primary{background:linear-gradient(90deg,var(--orange),var(--red));color:#fff;}
+.rm-btn-primary:hover{opacity:.88;}
+.rm-btn-secondary{background:var(--navy-light);border:1px solid var(--border);color:var(--text-muted);margin-right:10px;}
+.rm-btn-secondary:hover{border-color:var(--accent);color:var(--text);}
+</style>
+</head>
+<body>
+
+<!-- status bar for link hover -->
+<div class="link-statusbar" id="linkStatusBar">
+  <span id="linkStatusText"></span>
+  <span class="link-status-real" id="linkStatusReal"></span>
+</div>
+
+<!-- report modal -->
+<div id="reportModal" onclick="closeReportModal(event)">
+  <div class="rm-card" id="rmCard">
+    <span class="rm-icon" id="rmIcon"></span>
+    <div class="rm-title" id="rmTitle"></div>
+    <div class="rm-body"  id="rmBody"></div>
+    <div class="rm-tip"   id="rmTip" style="display:none;"></div>
+    <div>
+      <button class="rm-btn rm-btn-secondary" onclick="closeReportModal()">Close</button>
+      <button class="rm-btn rm-btn-primary"   id="rmActionBtn" onclick="closeReportModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- reveal panel -->
+<div id="revealPanel">
+  <div class="rp-badge" id="rpBadge">&#x1F50D; Something's off</div>
+  <div class="rp-title" id="rpTitle"></div>
+  <div class="rp-body"  id="rpBody"></div>
+  <div class="rp-xp"   id="rpXp"></div>
+</div>
+
+<!-- ══════ INTRO ══════ -->
+<div id="introScreen">
+  <div class="intro-icon">&#x1F3AF;</div>
+  <div class="intro-title">Scam Hunt</div>
+  <div class="intro-sub">Open everyday emails and texts. The tricky ones are mixed in with normal ones — tap anything that feels weird.</div>
+  <div class="intro-rules">
+    <div class="intro-rule"><span>&#x1F4E5;</span>Open the messages — the sketchy one is mixed in with normal ones</div>
+    <div class="intro-rule"><span>&#x1F5B1;&#xFE0F;</span>Tap the parts that feel off (links, threats, odd asks)</div>
+    <div class="intro-rule"><span>&#x1F4F1;</span>Try the debit-card and “hacked account” texts — tap them to dig in</div>
+    <div class="intro-rule"><span>&#x1F3C6;</span>Find 4 clues in each scene to clear it</div>
+  </div>
+  <button class="start-btn" onclick="startGame()">Let's Go</button>
+</div>
+
+<!-- ══════ HEADER ══════ -->
+<div class="top-bar" id="simTopBar" style="display:none;">
+  <div id="navMount"></div>
+  <div id="userChip"></div>
+</div>
+<header>
+  <div class="header-icon">&#x1F6E1;&#xFE0F;</div>
+  <div class="header-text">
+    <h1>Tech Day 2026 — Security Awareness</h1>
+    <p>Spot the Scam</p>
+  </div>
+</header>
+
+<!-- ══════ HUD ══════ -->
+<div class="hud" id="hud" style="display:none;">
+  <div><div class="hud-label">Points</div><div class="hud-val" id="hudXp" style="color:var(--gold)">0</div></div>
+  <div class="hud-xp-bar-wrap"><div class="hud-xp-bar" id="hudXpBar"></div></div>
+  <div class="hud-sep"></div>
+  <div><div class="hud-label">Clues</div><div class="hud-val" id="hudFlags" style="color:var(--red)">0/24</div></div>
+  <div class="hud-sep"></div>
+  <div><div class="hud-label">Scenario</div><div class="hud-val" id="hudScenario" style="color:var(--orange)">1/6</div></div>
+  <div class="hud-streak" id="hudStreak">&#x26A1; STREAK!</div>
+  <div style="margin-left:auto;"><a class="back-btn" href="index.html" style="margin-bottom:0;">&#8592; Home</a></div>
+</div>
+
+<!-- ══════ MAIN PAGE ══════ -->
+<div class="page" id="mainPage" style="display:none;padding-top:14px;">
+
+  <div class="scenario-strip" id="scenarioStrip">
+    <div class="s-card active" id="scard-0" onclick="goScenario(0)">
+      <span class="s-icon">&#x1F4E7;</span>
+      <div class="s-name">IT Reset Email</div>
+      <div class="s-prog" id="sprog-0">0/4 clues</div>
+    </div>
+    <div class="s-card" id="scard-1" onclick="goScenario(1)">
+      <span class="s-icon">&#x1F3E6;</span>
+      <div class="s-name">Fake Bank Login</div>
+      <div class="s-prog" id="sprog-1">0/4 clues</div>
+    </div>
+    <div class="s-card" id="scard-2" onclick="goScenario(2)">
+      <span class="s-icon">&#x1F4E6;</span>
+      <div class="s-name">Delivery Scam</div>
+      <div class="s-prog" id="sprog-2">0/4 clues</div>
+    </div>
+    <div class="s-card" id="scard-3" onclick="goScenario(3)">
+      <span class="s-icon">&#x1F4F1;</span>
+      <div class="s-name">Debit &amp; Texts</div>
+      <div class="s-prog" id="sprog-3">0/4 clues</div>
+    </div>
+    <div class="s-card" id="scard-4" onclick="goScenario(4)">
+      <span class="s-icon">&#x1F4F8;</span>
+      <div class="s-name">"Hacked" DM</div>
+      <div class="s-prog" id="sprog-4">0/4 clues</div>
+    </div>
+    <div class="s-card" id="scard-5" onclick="goScenario(5)">
+      <span class="s-icon">&#x1F4F7;</span>
+      <div class="s-name">QR Code Scam</div>
+      <div class="s-prog" id="sprog-5">0/4 clues</div>
+    </div>
+  </div>
+
+  <div class="game-area" id="gameArea">
+
+  <!-- ═══════════════════════════════════════
+       SCENARIO 0 — IT Reset Email
+  ═══════════════════════════════════════ -->
+  <div class="sim-scenario active" id="scenario-0">
+    <div class="mission-bar">
+      <div class="mission-num">01</div>
+      <div class="mission-info">
+        <h3>Inbox Check</h3>
+        <p>A new email just landed. Open them — one of them isn’t what it seems.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="flag-tracker" id="tracker-0">
+          <div class="flag-dot" id="dot-0-0">1</div>
+          <div class="flag-dot" id="dot-0-1">2</div>
+          <div class="flag-dot" id="dot-0-2">3</div>
+          <div class="flag-dot" id="dot-0-3">4</div>
+          <span class="flag-tracker-label">clues</span>
+        </div>
+        <button class="reveal-all-btn" onclick="revealAll(0)" style="margin-bottom:0;">Show Me</button>
+      </div>
+    </div>
+
+    <!-- Email client -->
+    <div class="client-shell">
+      <div class="client-titlebar">
+        <div class="client-titlebar-dots"><div class="chrome-dot red"></div><div class="chrome-dot yel"></div><div class="chrome-dot grn"></div></div>
+        <span class="client-app-title">&#x1F4E7; Microsoft Outlook — you@yourcompany.com</span>
+      </div>
+      <div class="client-body">
+
+        <!-- sidebar -->
+        <div class="client-sidebar">
+          <div class="client-sidebar-header">Folders</div>
+          <div class="sidebar-folder active"><span class="sf-icon">&#x1F4E5;</span> Inbox <span class="sf-badge" id="s0-badge">1</span></div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x2B50;</span> Starred</div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x1F4E4;</span> Sent</div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x1F5D1;&#xFE0F;</span> Trash</div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x26A0;&#xFE0F;</span> Junk</div>
+        </div>
+
+        <!-- inbox list -->
+        <div class="inbox-panel">
+          <div class="inbox-panel-header">
+            <span class="inbox-panel-title">Inbox</span>
+            <span style="font-size:.68rem;color:#555;">4 messages</span>
+          </div>
+          <div class="inbox-search-bar">&#x1F50D; <span>Search inbox</span></div>
+          <div class="inbox-list">
+
+            <!-- row: phishing — arrives last -->
+            <div class="inbox-row unread new-arrive" id="s0-row-phish" onclick="openMail(0,'phish')" style="animation-delay:.6s;">
+              <div class="ir-avatar" style="background:#b91c1c;">IT</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">IT Department</span><span class="ir-time">9:03 AM</span></div>
+                <div class="ir-subj">&#x26A0; ACTION REQUIRED: Account suspended in 24h</div>
+                <div class="ir-preview">We detected unusual activity. Verify immediately or...</div>
+              </div>
+              <div class="ir-unread-dot"></div>
+            </div>
+
+            <!-- row: safe 1 -->
+            <div class="inbox-row" id="s0-row-1" onclick="openMail(0,'safe1')" style="animation:slideUp .35s .1s both;">
+              <div class="ir-avatar" style="background:#2563eb;">HR</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">HR Department</span><span class="ir-time">Yesterday</span></div>
+                <div class="ir-subj">Open Enrollment closes Friday</div>
+                <div class="ir-preview">Hi team, just a reminder that open enrollment ends...</div>
+              </div>
+            </div>
+
+            <!-- row: safe 2 -->
+            <div class="inbox-row" id="s0-row-2" onclick="openMail(0,'safe2')" style="animation:slideUp .35s .2s both;">
+              <div class="ir-avatar" style="background:#15803d;">TM</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">Team Manager</span><span class="ir-time">Mon</span></div>
+                <div class="ir-subj">Re: Q4 planning meeting notes</div>
+                <div class="ir-preview">Thanks everyone for attending. Here are the action items...</div>
+              </div>
+            </div>
+
+            <!-- row: safe 3 -->
+            <div class="inbox-row" id="s0-row-3" onclick="openMail(0,'safe3')" style="animation:slideUp .35s .3s both;">
+              <div class="ir-avatar" style="background:#7c3aed;">SL</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">Slack</span><span class="ir-time">Sun</span></div>
+                <div class="ir-subj">New message in #general</div>
+                <div class="ir-preview">Sarah posted: "Don't forget the all-hands at 2pm today!"</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- reading pane -->
+        <div class="reading-pane" id="s0-reading">
+          <div class="reading-pane-empty" id="s0-empty">
+            <span>&#x1F4E7;</span>
+            Select an email to read it
+          </div>
+
+          <!-- safe 1 view -->
+          <div class="email-view" id="s0-view-safe1">
+            <div class="email-toolbar">
+              <button class="etb-btn">&#x21A9; Reply</button>
+              <button class="etb-btn">&#x21AA; Forward</button>
+              <button class="etb-btn">&#x1F5D1; Delete</button>
+              <button class="etb-btn etb-report" onclick="reportEmail(0,'safe1')">&#x1F6A9; Report Phishing</button>
+            </div>
+            <div class="email-header-area">
+              <div class="email-subject-line">Open Enrollment closes Friday — don't miss it</div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#2563eb;">HR</div>
+                <div class="meta-info">
+                  <div class="meta-from">HR Department <span style="color:#555">&lt;hr@yourcompany.com&gt;</span></div>
+                  <div class="meta-to">To: All Staff &lt;allstaff@yourcompany.com&gt;</div>
+                  <div class="meta-date">Monday, Jan 5, 2026 — 4:15 PM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p>Hi Team,</p>
+              <p>This is a reminder that <strong>Open Enrollment closes this Friday at 5:00 PM</strong>. Please log in to the benefits portal to review and confirm your selections for 2026.</p>
+              <p>If you have questions, reply to this email or visit HR in Room 204.</p>
+              <p>Thanks,<br><strong>HR Department</strong><br>yourcompany.com</p>
+            </div>
+          </div>
+
+          <!-- safe 2 view -->
+          <div class="email-view" id="s0-view-safe2">
+            <div class="email-toolbar">
+              <button class="etb-btn">&#x21A9; Reply</button>
+              <button class="etb-btn">&#x21AA; Forward</button>
+              <button class="etb-btn">&#x1F5D1; Delete</button>
+              <button class="etb-btn etb-report" onclick="reportEmail(0,'safe2')">&#x1F6A9; Report Phishing</button>
+            </div>
+            <div class="email-header-area">
+              <div class="email-subject-line">Re: Q4 planning meeting notes</div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#15803d;">TM</div>
+                <div class="meta-info">
+                  <div class="meta-from">Alex Rivera <span style="color:#555">&lt;a.rivera@yourcompany.com&gt;</span></div>
+                  <div class="meta-to">To: Team &lt;team-alpha@yourcompany.com&gt;</div>
+                  <div class="meta-date">Monday, Jan 5, 2026 — 2:40 PM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p>Hi all,</p>
+              <p>Thanks for a productive Q4 kickoff. Here are the action items:</p>
+              <ul style="padding-left:18px;margin-bottom:10px;">
+                <li>Jordan: Draft Q4 roadmap by Jan 10</li>
+                <li>Priya: Schedule stakeholder sync for week of Jan 13</li>
+                <li>Dev team: Capacity planning doc due Jan 12</li>
+              </ul>
+              <p>Full notes are in Confluence. Let me know if you have questions.</p>
+              <p>— Alex</p>
+            </div>
+          </div>
+
+          <!-- safe 3 view -->
+          <div class="email-view" id="s0-view-safe3">
+            <div class="email-toolbar">
+              <button class="etb-btn">&#x21A9; Reply</button>
+              <button class="etb-btn">&#x21AA; Forward</button>
+              <button class="etb-btn">&#x1F5D1; Delete</button>
+              <button class="etb-btn etb-report" onclick="reportEmail(0,'safe3')">&#x1F6A9; Report Phishing</button>
+            </div>
+            <div class="email-header-area">
+              <div class="email-subject-line">New message in #general</div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#7c3aed;">SL</div>
+                <div class="meta-info">
+                  <div class="meta-from">Slack <span style="color:#555">&lt;notifications@slack.com&gt;</span></div>
+                  <div class="meta-to">To: you@yourcompany.com</div>
+                  <div class="meta-date">Sunday, Jan 4, 2026 — 1:58 PM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p><strong>Sarah Kim</strong> posted in <strong>#general</strong>:</p>
+              <p style="background:#222;padding:10px 14px;border-left:3px solid #7c3aed;border-radius:0 6px 6px 0;font-style:italic;">"Don't forget the all-hands at 2pm today in the main conf room! Dial-in link in the calendar invite."</p>
+              <p style="font-size:.78rem;color:#555;">View this message in Slack →</p>
+            </div>
+          </div>
+
+          <!-- PHISHING view -->
+          <div class="email-view" id="s0-view-phish">
+            <div class="email-toolbar">
+              <button class="etb-btn">&#x21A9; Reply</button>
+              <button class="etb-btn">&#x21AA; Forward</button>
+              <button class="etb-btn">&#x1F5D1; Delete</button>
+              <button class="etb-btn etb-report etb-report-phish" onclick="reportEmail(0,'phish')">&#x1F6A9; Report Phishing</button>
+            </div>
+            <div class="email-header-area">
+              <div class="email-subject-line" id="s0-subject"><!-- typed --></div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#b91c1c;">IT</div>
+                <div class="meta-info">
+                  <div class="meta-from"><span class="red-flag" data-scenario="0" data-idx="0" data-title="Wrong email address" data-tip="It says 'IT Department' up front, but the real address after the @ isn't your company's usual one. Always check the address, not just the name." data-xp="100">IT Department &lt;it-support@acme-corp.helpdesk-portal.net&gt;</span></div>
+                  <div class="meta-to">To: you@yourcompany.com</div>
+                  <div class="meta-date">Today, 9:03 AM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p>Dear <span class="red-flag" data-scenario="0" data-idx="1" data-title="Doesn't know your name" data-tip="Your real IT team knows your name. 'Valued Employee' is a mass-blast greeting — they sent this to lots of people at once." data-xp="100">Valued Employee</span>,</p>
+              <p>We have detected <span class="red-flag" data-scenario="0" data-idx="2" data-title="Scary countdown" data-tip="'Verify in 24 hours or you're locked out' is meant to rush you. Real IT gives you time and won't threaten to wipe your account by email." data-xp="100">unusual activity on your account. You must verify your credentials <strong>within 24 hours or your account will be permanently suspended</strong></span>.</p>
+              <p>Please click the secure verification link below:</p>
+              <p>
+                <span class="red-flag link-elem" data-scenario="0" data-idx="3"
+                  data-title="Tricky link"
+                  data-tip="It looks like it has your company name in it, but the real site at the end is something else entirely. Read the whole address — the last bit before .com/.ru is what actually matters."
+                  data-xp="150"
+                  data-display="https://login-verify.yourcompany.com.malicious-phish.ru/reset"
+                  data-real="malicious-phish.ru/reset [NOT yourcompany.com]"
+                  onmouseenter="showStatusBar(this)" onmouseleave="hideStatusBar()"
+                >&#x1F517; https://login-verify.yourcompany.com.malicious-phish.ru/reset</span>
+              </p>
+              <p style="color:#666;font-size:.8rem;margin-top:14px;">IT Support Team<br>Your Company</p>
+            </div>
+          </div>
+
+        </div><!-- /reading-pane -->
+      </div>
+    </div><!-- /client-shell -->
+
+    <div class="scenario-complete" id="complete-0">
+      <div class="sc-trophy">&#x1F3AF;</div>
+      <div class="sc-title">Nice work!</div>
+      <div class="sc-sub">You caught what was wrong in that IT email.</div>
+      <div class="sc-xp-earned" id="sc-xp-0"></div>
+      <button class="sc-next-btn" onclick="goScenario(1)">Next Scenario &#8594;</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCENARIO 1 — Fake Bank Login
+  ═══════════════════════════════════════ -->
+  <div class="sim-scenario" id="scenario-1">
+    <div class="mission-bar">
+      <div class="mission-num">02</div>
+      <div class="mission-info">
+        <h3>Bank Login Page</h3>
+        <p>You followed a link from email. Look around before typing anything.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="flag-tracker" id="tracker-1">
+          <div class="flag-dot" id="dot-1-0">1</div>
+          <div class="flag-dot" id="dot-1-1">2</div>
+          <div class="flag-dot" id="dot-1-2">3</div>
+          <div class="flag-dot" id="dot-1-3">4</div>
+          <span class="flag-tracker-label">clues</span>
+        </div>
+        <button class="reveal-all-btn" onclick="revealAll(1)" style="margin-bottom:0;">Show Me</button>
+      </div>
+    </div>
+
+    <div class="browser-mock" id="browser-1">
+      <div class="browser-chrome">
+        <div class="browser-dots"><div class="chrome-dot red"></div><div class="chrome-dot yel"></div><div class="chrome-dot grn"></div></div>
+        <div class="browser-address">
+          <span class="red-flag" data-scenario="1" data-idx="0" data-title="Padlock isn't a green light" data-tip="A padlock only means the connection is private — fake sites can have one too. Always check the site name itself before you type anything." data-xp="100" style="cursor:pointer;">&#x1F512;</span>
+          <span id="urlDisplay-1" style="font-family:monospace;font-size:.76rem;"></span>
+        </div>
+      </div>
+      <div class="browser-load-bar"><div class="browser-load-inner" id="loadBar-1"></div></div>
+      <div class="browser-body">
+        <div class="bank-page" id="bankPage-1">
+          <div class="bank-logo">
+            <div class="bank-logo-icon">FN</div>
+            <div class="bank-logo-name">First National Bank</div>
+          </div>
+          <div class="bank-login-card">
+            <h3>Sign in to your account</h3>
+            <div class="bank-field"><label>Username</label><input type="text" placeholder="Enter username" readonly></div>
+            <div class="bank-field"><label>Password</label><input type="password" placeholder="Enter password" readonly></div>
+            <div class="bank-field">
+              <label><span class="red-flag" data-scenario="1" data-idx="2" data-title="Asking for too much" data-tip="Real bank logins usually want a username and password. Asking for your full SSN, PIN, and birthday on the first screen is a big warning — that info shouldn't be dumped into a random form." data-xp="100">Full Social Security Number</span></label>
+              <input type="text" placeholder="XXX-XX-XXXX" readonly>
+            </div>
+            <div class="bank-field"><label>Date of Birth &amp; PIN</label><input type="text" placeholder="MM/DD/YYYY | ****" readonly></div>
+            <button class="bank-submit">Sign In Securely</button>
+            <div class="bank-fine-print">
+              <span class="red-flag" data-scenario="1" data-idx="3" data-title="Old copyright year" data-tip="Real banks update the little © year at the bottom. Seeing an old year like 2019 is a small clue the page was copied and left unfinished." data-xp="100">&copy; 2019 First National Bank. All rights reserved.<br>Your security is our priority.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scenario-complete" id="complete-1">
+      <div class="sc-trophy">&#x1F6E1;&#xFE0F;</div>
+      <div class="sc-title">Nice work!</div>
+      <div class="sc-sub">You spotted the problems on that bank page.</div>
+      <div class="sc-xp-earned" id="sc-xp-1"></div>
+      <button class="sc-next-btn" onclick="goScenario(2)">Next Scenario &#8594;</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCENARIO 2 — Delivery Scam
+  ═══════════════════════════════════════ -->
+  <div class="sim-scenario" id="scenario-2">
+    <div class="mission-bar">
+      <div class="mission-num">03</div>
+      <div class="mission-info">
+        <h3>Package Emails</h3>
+        <p>Five messages about deliveries. One doesn’t belong — open them and dig in.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="flag-tracker" id="tracker-2">
+          <div class="flag-dot" id="dot-2-0">1</div>
+          <div class="flag-dot" id="dot-2-1">2</div>
+          <div class="flag-dot" id="dot-2-2">3</div>
+          <div class="flag-dot" id="dot-2-3">4</div>
+          <span class="flag-tracker-label">clues</span>
+        </div>
+        <button class="reveal-all-btn" onclick="revealAll(2)" style="margin-bottom:0;">Show Me</button>
+      </div>
+    </div>
+
+    <div class="client-shell">
+      <div class="client-titlebar">
+        <div class="client-titlebar-dots"><div class="chrome-dot red"></div><div class="chrome-dot yel"></div><div class="chrome-dot grn"></div></div>
+        <span class="client-app-title">&#x1F4E7; Microsoft Outlook — you@yourcompany.com</span>
+      </div>
+      <div class="client-body">
+
+        <div class="client-sidebar">
+          <div class="client-sidebar-header">Folders</div>
+          <div class="sidebar-folder active"><span class="sf-icon">&#x1F4E5;</span> Inbox <span class="sf-badge" id="s2-badge">1</span></div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x2B50;</span> Starred</div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x1F4E4;</span> Sent</div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x1F5D1;&#xFE0F;</span> Trash</div>
+          <div class="sidebar-folder"><span class="sf-icon">&#x26A0;&#xFE0F;</span> Junk</div>
+        </div>
+
+        <div class="inbox-panel">
+          <div class="inbox-panel-header">
+            <span class="inbox-panel-title">Inbox</span>
+            <span style="font-size:.68rem;color:#555;">5 messages</span>
+          </div>
+          <div class="inbox-search-bar">&#x1F50D; <span>Search inbox</span></div>
+          <div class="inbox-list">
+
+            <div class="inbox-row unread new-arrive" id="s2-row-phish" onclick="openMail(2,'phish')" style="animation-delay:.5s;">
+              <div class="ir-avatar" style="background:#92400e;">&#x1F4E6;</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">Delivery Notifications</span><span class="ir-time">11:47 AM</span></div>
+                <div class="ir-subj">Your package could not be delivered</div>
+                <div class="ir-preview">We attempted delivery today. Please reschedule...</div>
+              </div>
+              <div class="ir-unread-dot"></div>
+            </div>
+
+            <div class="inbox-row" id="s2-row-1" onclick="openMail(2,'d1')" style="animation:slideUp .35s .1s both;">
+              <div class="ir-avatar" style="background:#0369a1;">SH</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">Shopify</span><span class="ir-time">Yesterday</span></div>
+                <div class="ir-subj">Your order #4812 has shipped!</div>
+                <div class="ir-preview">Great news! Your order is on its way. Tracking: 1Z999AA1...</div>
+              </div>
+            </div>
+
+            <div class="inbox-row" id="s2-row-2" onclick="openMail(2,'d2')" style="animation:slideUp .35s .2s both;">
+              <div class="ir-avatar" style="background:#16a34a;">NL</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">Newsletter</span><span class="ir-time">Mon</span></div>
+                <div class="ir-subj">This week in tech — Jan 6 edition</div>
+                <div class="ir-preview">Top stories: AI regulation updates, new chip announcements...</div>
+              </div>
+            </div>
+
+            <div class="inbox-row" id="s2-row-3" onclick="openMail(2,'d3')" style="animation:slideUp .35s .3s both;">
+              <div class="ir-avatar" style="background:#7c3aed;">ZM</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">Zoom</span><span class="ir-time">Mon</span></div>
+                <div class="ir-subj">Your meeting recording is ready</div>
+                <div class="ir-preview">The recording of "Q4 Kickoff" is now available in your...</div>
+              </div>
+            </div>
+
+            <div class="inbox-row" id="s2-row-4" onclick="openMail(2,'d4')" style="animation:slideUp .35s .4s both;">
+              <div class="ir-avatar" style="background:#0f766e;">AM</div>
+              <div class="ir-right">
+                <div class="ir-top"><span class="ir-sender">Amazon</span><span class="ir-time">Sun</span></div>
+                <div class="ir-subj">Order #112-3948576 delivered</div>
+                <div class="ir-preview">Your package was delivered Sunday at 2:34 PM. Tracking: ...</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- reading pane -->
+        <div class="reading-pane" id="s2-reading">
+          <div class="reading-pane-empty" id="s2-empty"><span>&#x1F4E7;</span>Select an email to read it</div>
+
+          <!-- safe: shopify -->
+          <div class="email-view" id="s2-view-d1">
+            <div class="email-toolbar"><button class="etb-btn">&#x21A9; Reply</button><button class="etb-btn">&#x21AA; Forward</button><button class="etb-btn">&#x1F5D1; Delete</button><button class="etb-btn etb-report" onclick="reportEmail(2,'d1')">&#x1F6A9; Report Phishing</button></div>
+            <div class="email-header-area">
+              <div class="email-subject-line">Your order #4812 has shipped!</div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#0369a1;">SH</div>
+                <div class="meta-info">
+                  <div class="meta-from">Shopify <span style="color:#555">&lt;noreply@shopify.com&gt;</span></div>
+                  <div class="meta-to">To: you@yourcompany.com</div>
+                  <div class="meta-date">Monday, Jan 5, 2026 — 3:12 PM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p>&#x1F389; Your order is on its way!</p>
+              <p><strong>Order #4812</strong> — 2x USB-C Hubs, 1x Desk Mat</p>
+              <p>Tracking number: <strong>1Z999AA10123456784</strong> (UPS)</p>
+              <p>Estimated delivery: <strong>Wednesday, Jan 8</strong></p>
+              <p style="font-size:.78rem;color:#555;">Track your package at ups.com or in the Shopify app.</p>
+            </div>
+          </div>
+
+          <!-- safe: newsletter -->
+          <div class="email-view" id="s2-view-d2">
+            <div class="email-toolbar"><button class="etb-btn">&#x21A9; Reply</button><button class="etb-btn">&#x21AA; Forward</button><button class="etb-btn">&#x1F5D1; Delete</button><button class="etb-btn etb-report" onclick="reportEmail(2,'d2')">&#x1F6A9; Report Phishing</button></div>
+            <div class="email-header-area">
+              <div class="email-subject-line">This week in tech — Jan 6 edition</div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#16a34a;">NL</div>
+                <div class="meta-info">
+                  <div class="meta-from">TechBrief Newsletter <span style="color:#555">&lt;digest@techbrief.io&gt;</span></div>
+                  <div class="meta-to">To: you@yourcompany.com</div>
+                  <div class="meta-date">Monday, Jan 6, 2026 — 7:00 AM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p><strong>Top stories this week:</strong></p>
+              <ul style="padding-left:18px;margin-bottom:10px;">
+                <li>EU finalises AI Act implementation guidelines</li>
+                <li>New 3nm chips announced at CES 2026</li>
+                <li>Open-source LLM tops benchmark charts</li>
+              </ul>
+              <p style="font-size:.78rem;color:#555;">You're receiving this because you subscribed at techbrief.io. Unsubscribe →</p>
+            </div>
+          </div>
+
+          <!-- safe: zoom -->
+          <div class="email-view" id="s2-view-d3">
+            <div class="email-toolbar"><button class="etb-btn">&#x21A9; Reply</button><button class="etb-btn">&#x21AA; Forward</button><button class="etb-btn">&#x1F5D1; Delete</button><button class="etb-btn etb-report" onclick="reportEmail(2,'d3')">&#x1F6A9; Report Phishing</button></div>
+            <div class="email-header-area">
+              <div class="email-subject-line">Your meeting recording is ready</div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#7c3aed;">ZM</div>
+                <div class="meta-info">
+                  <div class="meta-from">Zoom <span style="color:#555">&lt;no-reply@zoom.us&gt;</span></div>
+                  <div class="meta-to">To: you@yourcompany.com</div>
+                  <div class="meta-date">Monday, Jan 5, 2026 — 5:28 PM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p>Your recording of <strong>Q4 Kickoff Meeting</strong> is now available.</p>
+              <p>Duration: 48 minutes &nbsp;|&nbsp; Participants: 12</p>
+              <p style="font-size:.78rem;color:#555;">View at zoom.us/recordings — link expires in 30 days.</p>
+            </div>
+          </div>
+
+          <!-- safe: amazon -->
+          <div class="email-view" id="s2-view-d4">
+            <div class="email-toolbar"><button class="etb-btn">&#x21A9; Reply</button><button class="etb-btn">&#x21AA; Forward</button><button class="etb-btn">&#x1F5D1; Delete</button><button class="etb-btn etb-report" onclick="reportEmail(2,'d4')">&#x1F6A9; Report Phishing</button></div>
+            <div class="email-header-area">
+              <div class="email-subject-line">Order #112-3948576 delivered</div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#0f766e;">AM</div>
+                <div class="meta-info">
+                  <div class="meta-from">Amazon <span style="color:#555">&lt;shipment-tracking@amazon.com&gt;</span></div>
+                  <div class="meta-to">To: you@yourcompany.com</div>
+                  <div class="meta-date">Sunday, Jan 4, 2026 — 2:41 PM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p>&#x2705; Your package was delivered!</p>
+              <p>Order <strong>#112-3948576</strong> — delivered Sunday Jan 4 at 2:34 PM.</p>
+              <p>Tracking: <strong>TBA837462910US</strong> (USPS)</p>
+              <p style="font-size:.78rem;color:#555;">View your order at amazon.com/orders</p>
+            </div>
+          </div>
+
+          <!-- PHISHING view -->
+          <div class="email-view" id="s2-view-phish">
+            <div class="email-toolbar"><button class="etb-btn">&#x21A9; Reply</button><button class="etb-btn">&#x21AA; Forward</button><button class="etb-btn">&#x1F5D1; Delete</button><button class="etb-btn etb-report etb-report-phish" onclick="reportEmail(2,'phish')">&#x1F6A9; Report Phishing</button></div>
+            <div class="email-header-area">
+              <div class="email-subject-line" id="s2-subject"><!-- typed --></div>
+              <div class="email-meta-row">
+                <div class="meta-avatar" style="background:#92400e;">&#x1F4E6;</div>
+                <div class="meta-info">
+                  <div class="meta-from">
+                    <span class="red-flag" data-scenario="2" data-idx="0"
+                      data-title="Vague sender"
+                      data-tip="Real carriers use their own names and sites. 'Delivery Notifications' from a random address is a common trick — if they won't say which company they are, be careful."
+                      data-xp="100"
+                    >Delivery Notifications &lt;noreply@delivery-notifications.parcel-track.info&gt;</span>
+                  </div>
+                  <div class="meta-to">To: you@yourcompany.com</div>
+                  <div class="meta-date">Today, 11:47 AM</div>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-area">
+              <p>Dear Customer,</p>
+              <p>We attempted to deliver your package today but were unable to complete the delivery.
+                <span class="red-flag" data-scenario="2" data-idx="1"
+                  data-title="Missing tracking number"
+                  data-tip="Real delivery emails almost always include a tracking number. This one doesn't. Compare it with the other package emails in this inbox."
+                  data-xp="100"
+                >Please reschedule your delivery at your earliest convenience.</span>
+              </p>
+              <p>
+                <span class="red-flag link-elem" data-scenario="2" data-idx="2"
+                  data-title="Link goes somewhere else"
+                  data-tip="The words on the button don't match where the link actually goes. Hover or long-press to peek — if the real address looks weird, don't tap."
+                  data-xp="150"
+                  data-display="Reschedule Delivery → track.shipping-updates.com"
+                  data-real="parcel-redelivery.xyz/confirm?id=48291"
+                  onmouseenter="showStatusBar(this)" onmouseleave="hideStatusBar()"
+                >&#x1F517; Reschedule Delivery &rarr; track.shipping-updates.com</span>
+              </p>
+              <p style="margin-top:14px;">Alternatively, complete the attached form:</p>
+              <p style="margin-top:6px;">
+                <span class="red-flag attachment-elem" data-scenario="2" data-idx="3"
+                  data-title="Odd file attachment"
+                  data-tip="Delivery companies don't send .zip files to reschedule a package. Real ones just link to their website. Don't open surprise zip files from shipping emails."
+                  data-xp="100"
+                >
+                  <span style="font-size:1rem;">&#x1F4CE;</span>
+                  <span style="color:#ccc;">DeliveryForm_Confirmation.zip</span>
+                  <span class="att-warn">&#x26A0; Check this</span>
+                </span>
+              </p>
+              <p style="color:#666;font-size:.8rem;margin-top:14px;">Customer Service<br>Parcel Delivery Network</p>
+            </div>
+          </div>
+
+        </div><!-- /reading-pane -->
+      </div>
+    </div><!-- /client-shell -->
+
+    <div class="scenario-complete" id="complete-2">
+      <div class="sc-trophy">&#x1F947;</div>
+      <div class="sc-title">Nice work!</div>
+      <div class="sc-sub">You caught the fake delivery email.</div>
+      <div class="sc-xp-earned" id="sc-xp-2"></div>
+      <button class="sc-next-btn" onclick="goScenario(3)">Next Scenario &#8594;</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCENARIO 3 — Money Scam SMS
+  ═══════════════════════════════════════ -->
+  <div class="sim-scenario" id="scenario-3">
+    <div class="mission-bar">
+      <div class="mission-num">04</div>
+      <div class="mission-info">
+        <h3>Weird Texts About Your Money</h3>
+        <p>Your phone buzzed. Tap any message that feels off — then tap the bits inside that seem wrong.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="flag-tracker" id="tracker-3">
+          <div class="flag-dot" id="dot-3-0">1</div>
+          <div class="flag-dot" id="dot-3-1">2</div>
+          <div class="flag-dot" id="dot-3-2">3</div>
+          <div class="flag-dot" id="dot-3-3">4</div>
+          <span class="flag-tracker-label">clues</span>
+        </div>
+        <button class="reveal-all-btn" onclick="revealAll(3)" style="margin-bottom:0;">Show Me</button>
+      </div>
+    </div>
+
+    <!-- SMS phone mock -->
+    <div class="sms-phone-wrap">
+      <div class="sms-phone">
+        <div class="sms-phone-notch"></div>
+        <div class="sms-phone-status">
+          <span>9:41</span><span style="margin-left:auto;">&#x1F4F6; &#x1F50B;</span>
+        </div>
+        <div class="sms-header">
+          <span class="sms-back">&#8592;</span>
+          <div class="sms-contact-info">
+            <div class="sms-avatar" style="background:#3b82f6;">M</div>
+            <div>
+              <div class="sms-contact-name">Messages</div>
+              <div class="sms-contact-sub">Inbox</div>
+            </div>
+          </div>
+          <span class="sms-more">&#8942;</span>
+        </div>
+
+        <div class="sms-thread">
+
+          <!-- Safe SMS 1 -->
+          <div class="sms-bubble-wrap left" style="animation:slideUp .3s .1s both;">
+            <div class="sms-bubble safe">
+              <p>Your Chase verification code is <strong>847291</strong>. Never share this code. Chase won't ask for it.</p>
+            </div>
+            <div class="sms-time">Yesterday 10:14 AM · Chase</div>
+          </div>
+
+          <!-- Safe SMS 2 -->
+          <div class="sms-bubble-wrap left" style="animation:slideUp .3s .2s both;">
+            <div class="sms-bubble safe">
+              <p>USPS: Your package is out for delivery today. Track at usps.com/track</p>
+            </div>
+            <div class="sms-time">Today 8:02 AM · USPS</div>
+          </div>
+
+          <!-- PHISHING SMS — debit card alert (looks like normal bubble until investigated) -->
+          <div class="sms-bubble-wrap left" style="animation:slideUp .3s .4s both;" id="s3-phish-bubble">
+            <div class="tap-msg" id="s3-debit-msg" onclick="investigateMsg(this, event)">
+              <div class="sms-bubble phish" id="s3-phish-bubble-inner">
+                <p><span class="red-flag" data-scenario="3" data-idx="0"
+                  data-title="Not really your bank"
+                  data-tip="It sounds like a bank alert, but it came from a random phone number — not a short code your bank usually uses. When money texts feel urgent, open your real banking app instead of tapping the message."
+                  data-xp="100">ALERT: Debit card ending 4821</span> — <span class="red-flag" data-scenario="3" data-idx="1"
+                  data-title="Scary countdown"
+                  data-tip="'Cancel in 15 minutes or lose $842' is meant to panic you. Real banks don't freeze your card through a random text with a ticking clock. Check the app or call the number on the back of your card."
+                  data-xp="100">unusual $842 purchase detected. Card will be locked in 15 min</span> unless you cancel.</p>
+                <p style="margin-top:8px;">Cancel charge: <span class="red-flag sms-link" data-scenario="3" data-idx="2"
+                  data-title="Hidden web address"
+                  data-tip="Short links hide where you're really going. This one doesn't lead to your bank — it leads somewhere else that wants your card details. Long-press or peek at the link before you tap."
+                  data-xp="150"
+                  data-display="bit.ly/debit-cancel-now"
+                  data-real="card-secure-fix.ru/steal"
+                  onmouseenter="showStatusBar(this)" onmouseleave="hideStatusBar()"
+                >bit.ly/debit-cancel-now</span></p>
+                <p style="margin-top:8px;"><span class="red-flag" data-scenario="3" data-idx="3"
+                  data-title="Asking for your PIN"
+                  data-tip="No bank will ever ask you to text back your PIN or full card number. That's the clearest giveaway. Delete the text and open your real bank app if you're worried."
+                  data-xp="100">Or reply YES + your 4-digit PIN to confirm.</span></p>
+                <div class="tap-hint">&#x1F447; Now tap the weird parts inside the message</div>
+              </div>
+            </div>
+            <div class="sms-time">Today 9:03 AM · +1 (855) 002-9147</div>
+          </div>
+
+          <!-- Safe SMS 3 -->
+          <div class="sms-bubble-wrap left" style="animation:slideUp .3s .3s both;">
+            <div class="sms-bubble safe">
+              <p>Hi! Your Amazon order has shipped. Track: amzn.com/t/ABC123</p>
+            </div>
+            <div class="sms-time">Today 11:20 AM · Amazon</div>
+          </div>
+
+        </div><!-- /sms-thread -->
+
+        <div class="sms-input-bar">
+          <div class="sms-input-field">iMessage</div>
+          <div class="sms-send-btn">&#x2191;</div>
+        </div>
+      </div><!-- /sms-phone -->
+
+      <div class="sms-legend">
+        <h4>&#x1F4A1; Tips for money texts</h4>
+        <ul>
+          <li>Does it rush you with a timer?</li>
+          <li>Does it ask for a PIN or card number?</li>
+          <li>Does the link look shortened or odd?</li>
+          <li>When unsure, open the real bank app — don't tap the text</li>
+        </ul>
+        <p class="sms-legend-tip">Tap the debit-card text first — it'll shake and light up — then tap the parts that feel wrong.</p>
+      </div>
+    </div><!-- /sms-phone-wrap -->
+
+    <div class="scenario-complete" id="complete-3">
+      <div class="sc-trophy">&#x1F4F1;</div>
+      <div class="sc-title">Nice work!</div>
+      <div class="sc-sub">You caught the fake debit-card text.</div>
+      <div class="sc-xp-earned" id="sc-xp-3"></div>
+      <button class="sc-next-btn" onclick="goScenario(4)">Next &#8594;</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCENARIO 4 — Instagram Malicious Link
+  ═══════════════════════════════════════ -->
+  <div class="sim-scenario" id="scenario-4">
+    <div class="mission-bar">
+      <div class="mission-num">05</div>
+      <div class="mission-info">
+        <h3>“Your Account Was Hacked” DM</h3>
+        <p>Someone DMed you saying your account got hacked. Tap the message, then tap what feels fake.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="flag-tracker" id="tracker-4">
+          <div class="flag-dot" id="dot-4-0">1</div>
+          <div class="flag-dot" id="dot-4-1">2</div>
+          <div class="flag-dot" id="dot-4-2">3</div>
+          <div class="flag-dot" id="dot-4-3">4</div>
+          <span class="flag-tracker-label">clues</span>
+        </div>
+        <button class="reveal-all-btn" onclick="revealAll(4)" style="margin-bottom:0;">Show Me</button>
+      </div>
+    </div>
+
+    <!-- Instagram DM mock -->
+    <div class="ig-wrap">
+      <div class="ig-phone">
+        <div class="ig-phone-notch"></div>
+        <div class="ig-dm-header">
+          <span class="ig-back">&#8592;</span>
+          <div class="ig-dm-contact">
+            <div class="ig-avatar-ring"><div class="ig-avatar">IG</div></div>
+            <div>
+              <div class="ig-contact-name"><span class="red-flag" data-scenario="4" data-idx="0"
+                data-title="Fake “support” account"
+                data-tip="Real Instagram won't DM you out of the blue as @instagram.security.team. Support lives in the Help section of the app — not a random chat."
+                data-xp="100">@instagram.security.team</span></div>
+              <div class="ig-contact-sub">Active now</div>
+            </div>
+          </div>
+          <span style="font-size:1.2rem;color:#888;margin-left:auto;">&#x2139;</span>
+        </div>
+
+        <div class="ig-thread">
+          <div class="ig-bubble-wrap" style="animation:slideUp .3s .15s both;">
+            <div class="tap-msg" id="s4-hacked-msg" onclick="investigateMsg(this, event)">
+              <div class="ig-bubble">
+                <p>Hi! We noticed a login from <strong>Moscow</strong> — it looks like your account may have been <strong>hacked</strong>.</p>
+                <p style="margin-top:6px;"><span class="red-flag" data-scenario="4" data-idx="1"
+                  data-title="Scary deadline"
+                  data-tip="'Disabled in 24 hours' is meant to scare you into rushing. Real alerts go to your email or in-app notifications — not a DM with a countdown."
+                  data-xp="100">Your account will be permanently disabled in 24 hours if you don't verify.</span></p>
+                <p style="margin-top:6px;">Tap here to lock it down:</p>
+                <p style="margin-top:6px;"><span class="red-flag sms-link" data-scenario="4" data-idx="2"
+                  data-title="Wrong website"
+                  data-tip="That address looks close to Instagram, but it isn't the real site. Never type your password on a page that isn't the real instagram.com."
+                  data-xp="150"
+                  data-display="instagram-security-verify.com/account-review"
+                  data-real="instagram-security-verify.com [NOT the real Instagram]"
+                  onmouseenter="showStatusBar(this)" onmouseleave="hideStatusBar()"
+                >&#x1F517; instagram-security-verify.com/account-review</span></p>
+                <div class="tap-hint">&#x1F447; Tap the weird parts in the message</div>
+              </div>
+            </div>
+            <div class="ig-time">Today 2:17 PM</div>
+          </div>
+
+          <div class="ig-bubble-wrap" style="animation:slideUp .3s .3s both;">
+            <div class="tap-msg" id="s4-pass-msg" onclick="investigateMsg(this, event)">
+              <div class="ig-bubble">
+                <p><span class="red-flag" data-scenario="4" data-idx="3"
+                  data-title="Asking for your password"
+                  data-tip="Nobody from Instagram will ask for your password in a chat. If a message asks you to type it here, it's fake."
+                  data-xp="100">Reply with your Instagram password so we can verify you and restore access.</span></p>
+                <div class="tap-hint">&#x1F447; Tap what's wrong here</div>
+              </div>
+            </div>
+            <div class="ig-time">Today 2:18 PM</div>
+          </div>
+        </div>
+
+        <div class="ig-reply-bar">
+          <div class="ig-reply-input">Reply...</div>
+          <span style="font-size:1.3rem;margin-left:8px;">&#x1F399;</span>
+        </div>
+      </div><!-- /ig-phone -->
+
+      <!-- Fake IG login page -->
+      <div class="ig-browser-col">
+        <div class="browser-mock">
+          <div class="browser-chrome">
+            <div class="browser-dots"><div class="chrome-dot red"></div><div class="chrome-dot yel"></div><div class="chrome-dot grn"></div></div>
+            <div class="browser-address">
+              <span style="color:#aaa;font-size:.8rem;">&#x1F513;</span>
+              <span style="font-family:monospace;font-size:.76rem;color:#ccc;">instagram-security-verify.com/account-review</span>
+            </div>
+          </div>
+          <div class="ig-fake-page">
+            <div class="ig-fake-logo">&#x1F4F7; <span>Instagram</span></div>
+            <div class="ig-fake-card">
+              <p style="font-size:.82rem;color:#333;margin-bottom:16px;text-align:center;font-weight:600;">Account Security Review</p>
+              <div class="ig-fake-field"><label>Username</label><input type="text" placeholder="Username" readonly></div>
+              <div class="ig-fake-field"><label>Password</label><input type="password" placeholder="Password" readonly></div>
+              <div class="ig-fake-field"><label>Email on account</label><input type="text" placeholder="Email" readonly></div>
+              <div class="ig-fake-field"><label>Phone on account</label><input type="text" placeholder="+1 (___) ___-____" readonly></div>
+              <button class="ig-fake-btn">Verify Account</button>
+              <p style="font-size:.68rem;color:#999;text-align:center;margin-top:10px;">By verifying, you agree to the Terms</p>
+            </div>
+          </div>
+        </div>
+        <div class="ig-browser-tip">
+          <span>&#x1F4A1;</span>
+          <div>
+            Look at the address bar — does it match the real Instagram site? If not, don't type anything.
+          </div>
+        </div>
+      </div>
+    </div><!-- /ig-wrap -->
+
+    <div class="scenario-complete" id="complete-4">
+      <div class="sc-trophy">&#x1F4F8;</div>
+      <div class="sc-title">Nice work!</div>
+      <div class="sc-sub">You spotted the fake “hacked account” DM.</div>
+      <div class="sc-xp-earned" id="sc-xp-4"></div>
+      <button class="sc-next-btn" onclick="goScenario(5)">Next &#8594;</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCENARIO 5 — QR Code Scam
+  ═══════════════════════════════════════ -->
+  <div class="sim-scenario" id="scenario-5">
+    <div class="mission-bar">
+      <div class="mission-num">06</div>
+      <div class="mission-info">
+        <h3>QR Codes Around Town</h3>
+        <p>Three codes, three places. Tap anything that feels wrong on one of them.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="flag-tracker" id="tracker-5">
+          <div class="flag-dot" id="dot-5-0">1</div>
+          <div class="flag-dot" id="dot-5-1">2</div>
+          <div class="flag-dot" id="dot-5-2">3</div>
+          <div class="flag-dot" id="dot-5-3">4</div>
+          <span class="flag-tracker-label">clues</span>
+        </div>
+        <button class="reveal-all-btn" onclick="revealAll(5)" style="margin-bottom:0;">Show Me</button>
+      </div>
+    </div>
+
+    <div class="qr-scenarios-grid">
+
+      <!-- QR Card A: Safe parking meter -->
+      <div class="qr-card safe-qr">
+        <div class="qr-card-badge safe-badge">Parking</div>
+        <div class="qr-card-title">&#x1F17F;&#xFE0F; Meter payment</div>
+        <div class="qr-mock"><div class="qr-pattern"></div></div>
+        <div class="qr-url-preview safe-url">pay.parkmobile.io/meter/8821</div>
+        <p class="qr-card-desc">Printed on the meter. Opens the usual parking payment site.</p>
+      </div>
+
+      <!-- QR Card B: SCAM parking meter sticker -->
+      <div class="qr-card scam-qr" id="qr-scam-card">
+        <div class="qr-card-badge scam-badge">Parking</div>
+        <div class="qr-card-title">&#x1F4CB; “Updated” payment notice</div>
+        <div class="qr-mock scam-qr-mock">
+          <div class="qr-pattern" style="opacity:.7;"></div>
+          <div class="qr-sticker-label">UPDATED<br>QR CODE</div>
+        </div>
+        <div class="qr-url-preview scam-url">
+          <span class="red-flag" data-scenario="5" data-idx="2"
+            data-title="Look-alike site name"
+            data-tip="After you scan, look closely at the site name. Here a letter was swapped so it almost looks like the real parking site. Don't pay until the name matches what you expect."
+            data-xp="150"
+            data-display="parkmobiIe.io/pay (I not l)"
+            data-real="parkmobiIe.io [look-alike — not the real site]"
+            onmouseenter="showStatusBar(this)" onmouseleave="hideStatusBar()"
+          >parkmobiIe.io/pay</span>
+        </div>
+        <div class="qr-flag-list">
+          <div class="qr-flag-item">
+            <span class="red-flag" data-scenario="5" data-idx="0"
+              data-title="Sticker stuck on top"
+              data-tip="Feel the code — if it's a sticker sitting on top of another code, don't scan it. People paste fake codes over real ones on meters and tables."
+              data-xp="100"
+            >Feels like a sticker on top of another code</span>
+          </div>
+          <div class="qr-flag-item">
+            <span class="red-flag" data-scenario="5" data-idx="1"
+              data-title="Rushed payment threat"
+              data-tip="'Pay in 15 minutes or get a fine' is pressure, not policy. Real meters don't slap countdown threats on stickers."
+              data-xp="100"
+            >Sign says pay within 15 min or get a fine</span>
+          </div>
+          <div class="qr-flag-item">
+            <span class="red-flag" data-scenario="5" data-idx="3"
+              data-title="Asks for full card details"
+              data-tip="A parking scan shouldn't dump you into a form asking for every card number and code. Prefer the official app or a checkout you already trust."
+              data-xp="100"
+            >Page asks for full card number and security code</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Card C: Safe restaurant menu -->
+      <div class="qr-card safe-qr">
+        <div class="qr-card-badge safe-badge">Restaurant</div>
+        <div class="qr-card-title">&#x1F374; Table menu</div>
+        <div class="qr-mock"><div class="qr-pattern"></div></div>
+        <div class="qr-url-preview safe-url">themapleleaf.menu/table12</div>
+        <p class="qr-card-desc">Printed on a laminated card. Opens the restaurant’s menu — no payment ask.</p>
+      </div>
+
+    </div><!-- /qr-scenarios-grid -->
+
+    <div class="qr-learn-bar">
+      <h4>Quick QR tips</h4>
+      <div class="qr-rules-grid">
+        <div class="qr-rule"><span>&#x1F440;</span><p>Check if it’s a sticker on top of another code</p></div>
+        <div class="qr-rule"><span>&#x1F517;</span><p>Read the site name before you enter anything</p></div>
+        <div class="qr-rule"><span>&#x1F512;</span><p>Make sure the name matches the real business</p></div>
+        <div class="qr-rule"><span>&#x1F4B3;</span><p>Be careful typing full card details from a random scan</p></div>
+      </div>
+    </div>
+
+    <div class="scenario-complete" id="complete-5">
+      <div class="sc-trophy">&#x1F3C6;</div>
+      <div class="sc-title">All done!</div>
+      <div class="sc-sub">You worked through every scene — nice job.</div>
+      <div class="sc-xp-earned" id="sc-xp-5"></div>
+      <button class="sc-next-btn" onclick="showFinalResults()">&#x1F3C6; See Final Score</button>
+    </div>
+  </div>
+
+  </div><!-- /gameArea -->
+
+  <!-- Final results -->
+  <div id="finalResults">
+    <span class="fr-trophy" id="frTrophy"></span>
+    <div class="fr-title" id="frTitle"></div>
+    <div class="fr-sub"   id="frSub"></div>
+    <div class="fr-stats">
+      <div class="fr-stat"><div class="fr-stat-val" id="frXp"></div><div class="fr-stat-lbl">Total XP</div></div>
+      <div class="fr-stat"><div class="fr-stat-val" id="frFlags"></div><div class="fr-stat-lbl">Flags Found</div></div>
+      <div class="fr-stat"><div class="fr-stat-val" id="frRating"></div><div class="fr-stat-lbl">Rating</div></div>
+    </div>
+    <div class="fr-btns">
+      <button class="fr-replay-btn" onclick="replayGame()">&#x1F504; Play Again</button>
+      <a class="home-btn" href="leaderboard.html">Leaderboard</a>
+      <a class="home-btn" href="feedback.html">Feedback</a>
+      <a class="home-btn" href="index.html">&#8592; Home</a>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<footer>
+  Tech Day 2026 &mdash; Free GitHub Pages host &nbsp;|&nbsp; Demo content only
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function(){
+if (!TDApp.requireUser('simulation.html')) return;
+
+document.getElementById('navMount').innerHTML = TDApp.navHtml('sim');
+TDApp.renderUserChip(document.getElementById('userChip'));
+
+function syncSimProgress() {
+  if (typeof TDApp === 'undefined') return;
+  TDApp.saveProgress({
+    simFlags: flagsFound,
+    simXp: totalXp,
+    simDone: sceneDone.every(Boolean),
+    simScenes: sceneDone.slice()
+  });
+  TDApp.publishScore();
+}
+
+/* ════════════════════════════
+   STATE
+════════════════════════════ */
+var totalXp=0, flagsFound=0, currentScene=0;
+var streak=0, streakTimer=null;
+var sceneDone=[false,false,false,false,false,false];
+var sceneFlagsFound=[0,0,0,0,0,0];
+var sceneXp=[0,0,0,0,0,0];
+var foundFlags=[[],[],[],[],[],[]];
+var browserAnimated=false;
+var revealPanel=document.getElementById('revealPanel');
+
+/* ════════════════════════════
+   START
+════════════════════════════ */
+function startGame(){
+  var intro=document.getElementById('introScreen');
+  intro.style.animation='fadeOut .3s ease forwards';
+  setTimeout(function(){
+    intro.style.display='none';
+    var top=document.getElementById('simTopBar');
+    if(top) top.style.display='flex';
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('mainPage').style.display='block';
+    goScenario(0,true);
+  },300);
+}
+
+/* ════════════════════════════
+   SCENARIO NAV
+════════════════════════════ */
+function goScenario(idx,immediate){
+  document.querySelectorAll('.s-card').forEach(function(c,i){c.classList.toggle('active',i===idx);});
+  document.querySelectorAll('.sim-scenario').forEach(function(s){
+    s.classList.remove('active','entering'); s.style.display='none';
+  });
+  currentScene=idx; updateHud();
+  var el=document.getElementById('scenario-'+idx);
+  el.style.display='block';
+  if(!immediate){el.classList.add('entering');setTimeout(function(){el.classList.remove('entering');el.classList.add('active');},340);}
+  else el.classList.add('active');
+
+  if(idx===1 && !browserAnimated) setTimeout(function(){animateBrowser();},200);
+  setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'start'});},80);
+}
+
+/* ════════════════════════════
+   OPEN MAIL (inbox click)
+════════════════════════════ */
+function openMail(sIdx, key){
+  var prefix='s'+sIdx;
+  // deselect all rows in this scenario
+  document.querySelectorAll('#scenario-'+sIdx+' .inbox-row').forEach(function(r){r.classList.remove('selected');});
+  var rowEl=document.getElementById(prefix+'-row-'+(key==='phish'?'phish':key));
+  if(rowEl){rowEl.classList.remove('unread');rowEl.classList.add('selected');}
+
+  // hide unread dot
+  if(rowEl){var dot=rowEl.querySelector('.ir-unread-dot');if(dot)dot.style.display='none';}
+
+  // hide all views
+  document.querySelectorAll('#scenario-'+sIdx+' .email-view').forEach(function(v){v.classList.remove('active');});
+  // hide empty state
+  var empty=document.getElementById(prefix+'-empty');
+  if(empty)empty.style.display='none';
+
+  // show selected view
+  var view=document.getElementById(prefix+'-view-'+key);
+  if(view){
+    // scanline
+    var rp=document.getElementById(prefix+'-reading');
+    if(rp){rp.classList.add('reading-pane-scan');setTimeout(function(){rp.classList.remove('reading-pane-scan');},800);}
+
+    view.classList.add('active');
+
+    // typewriter subject for phishing emails
+    if(key==='phish'){
+      var subjects={
+        0:'⚠️ ACTION REQUIRED: Your account will be suspended in 24 hours',
+        2:'Your package could not be delivered — action required'
+      };
+      if(subjects[sIdx]) typeSubject(prefix+'-subject', subjects[sIdx]);
+    }
+  }
+
+  // update sidebar badge
+  var badge=document.getElementById(prefix+'-badge');
+  if(badge && key==='phish'){
+    badge.textContent='0'; badge.style.display='none';
+  }
+}
+
+/* ════════════════════════════
+   TYPEWRITER
+════════════════════════════ */
+function typeSubject(elId, text){
+  var el=document.getElementById(elId);
+  if(!el||el._typed)return;
+  el._typed=true;
+  el.innerHTML='';
+  var span=document.createElement('span');
+  span.className='typing-cursor';
+  el.appendChild(span);
+  var i=0;
+  var iv=setInterval(function(){
+    span.textContent+=text[i]; i++;
+    if(i>=text.length){clearInterval(iv);span.className='';}
+  },26);
+}
+
+/* ════════════════════════════
+   BROWSER ANIMATION (scenario 1)
+════════════════════════════ */
+function animateBrowser(){
+  if(browserAnimated)return; browserAnimated=true;
+  var loadBar=document.getElementById('loadBar-1');
+  var urlEl=document.getElementById('urlDisplay-1');
+  var bankPage=document.getElementById('bankPage-1');
+  var fullUrl='https://firstnationalbank-secure-login.com/account/login';
+
+  // Type URL
+  var i=0;
+  urlEl.textContent='';
+  urlEl.style.borderRight='2px solid var(--accent)';
+  urlEl.style.animation='blink .6s step-end infinite';
+  var iv=setInterval(function(){
+    urlEl.textContent+=fullUrl[i]; i++;
+    if(i>=fullUrl.length){
+      clearInterval(iv);
+      urlEl.style.borderRight='none';
+      urlEl.style.animation='none';
+      // Make it a clickable red-flag after typing
+      var rfSpan=document.createElement('span');
+      rfSpan.className='red-flag';
+      rfSpan.dataset.scenario='1'; rfSpan.dataset.idx='1';
+      rfSpan.dataset.title='Look-alike site name';
+      rfSpan.dataset.tip="The real bank site is different from this one. Extra words like 'secure' or 'login' in the name are a common trick. Check that the name matches the bank you know.";
+      rfSpan.dataset.xp='150';
+      rfSpan.style.fontFamily='monospace'; rfSpan.style.fontSize='.76rem';
+      rfSpan.textContent=fullUrl;
+      urlEl.replaceWith(rfSpan);
+      // loading bar
+      setTimeout(function(){
+        loadBar.style.width='100%';
+        setTimeout(function(){bankPage.classList.add('loaded');},650);
+      },250);
+    }
+  },20);
+}
+
+/* ════════════════════════════
+   STATUS BAR (link hover)
+════════════════════════════ */
+function showStatusBar(el){
+  var bar=document.getElementById('linkStatusBar');
+  var txt=document.getElementById('linkStatusText');
+  var real=document.getElementById('linkStatusReal');
+  txt.textContent=el.dataset.display||el.textContent.trim().substring(0,60);
+  real.textContent='→ real: '+el.dataset.real;
+  bar.classList.add('show');
+}
+function hideStatusBar(){
+  document.getElementById('linkStatusBar').classList.remove('show');
+}
+
+/* ════════════════════════════
+   TAP MESSAGE (debit / hacked bubbles)
+════════════════════════════ */
+function investigateMsg(el, e){
+  // If they tapped a red-flag inside, let that handler run — don't double-react
+  if(e && e.target.closest && e.target.closest('.red-flag')) return;
+
+  e && e.stopPropagation();
+
+  // Ripple at click
+  if(e){
+    var rip=document.createElement('div');
+    rip.className='tap-ripple';
+    rip.style.left=e.offsetX+'px';
+    rip.style.top=e.offsetY+'px';
+    el.style.position='relative';
+    el.appendChild(rip);
+    setTimeout(function(){rip.remove();},560);
+  }
+
+  el.classList.remove('msg-react');
+  void el.offsetWidth;
+  el.classList.add('msg-react','investigating');
+
+  // Soft flash on inner bubble
+  var bubble=el.querySelector('.sms-bubble, .ig-bubble');
+  if(bubble){
+    bubble.classList.add('has-finds');
+  }
+
+  // Soft haptic-style XP tease (no score until they find flags)
+  spawnXpPop(e?e.clientX:window.innerWidth/2, e?e.clientY:200, '👀 Dig in…');
+
+  setTimeout(function(){el.classList.remove('msg-react');},600);
+}
+
+/* ════════════════════════════
+   FLAG CLICK
+════════════════════════════ */
+document.addEventListener('click',function(e){
+  var flag=e.target.closest('.red-flag');
+  if(flag){
+    e.stopPropagation();
+    var sIdx=parseInt(flag.dataset.scenario,10);
+    var fIdx=parseInt(flag.dataset.idx,10);
+
+    if(revealPanel._currentFlag===flag&&revealPanel.classList.contains('show')){
+      revealPanel.classList.remove('show'); revealPanel._currentFlag=null; return;
+    }
+
+    var isNew=foundFlags[sIdx].indexOf(flag)===-1;
+    var xpEarned=0;
+
+    // Animate the tapped clue
+    flag.classList.remove('just-tapped');
+    void flag.offsetWidth;
+    flag.classList.add('just-tapped');
+
+    // Shake parent message if present
+    var parentMsg=flag.closest('.tap-msg');
+    if(parentMsg){
+      parentMsg.classList.add('investigating','msg-react');
+      setTimeout(function(){parentMsg.classList.remove('msg-react');},550);
+      var bub=parentMsg.querySelector('.sms-bubble, .ig-bubble');
+      if(bub)bub.classList.add('has-finds');
+    }
+
+    // Expose QR card when any flag on it is found
+    if(sIdx===5){
+      var qrCard=document.getElementById('qr-scam-card');
+      if(qrCard)qrCard.classList.add('exposed');
+    }
+
+    if(isNew){
+      var base=parseInt(flag.dataset.xp||'100',10);
+      streak++; clearTimeout(streakTimer);
+      streakTimer=setTimeout(function(){streak=0;updateStreakHud();},3500);
+      var mult=streak>=2?1+(streak-1)*.25:1;
+      xpEarned=Math.round(base*mult);
+      totalXp+=xpEarned; sceneXp[sIdx]+=xpEarned;
+      flagsFound++; sceneFlagsFound[sIdx]++;
+      foundFlags[sIdx].push(flag);
+      flag.classList.add('found-flag');
+      var dot=document.getElementById('dot-'+sIdx+'-'+fIdx);
+      if(dot)dot.classList.add('found');
+      document.getElementById('sprog-'+sIdx).textContent=sceneFlagsFound[sIdx]+'/4 clues';
+      updateHud(); updateStreakHud();
+      spawnXpPop(e.clientX,e.clientY,'+'+xpEarned+(streak>=2?' ⚡x'+streak:''));
+      spawnParticles(e.clientX,e.clientY);
+      if(typeof TDApp!=='undefined') TDApp.bumpEngagement('clicks');
+      syncSimProgress();
+      if(sceneFlagsFound[sIdx]>=4&&!sceneDone[sIdx]){
+        sceneDone[sIdx]=true;
+        document.getElementById('scard-'+sIdx).classList.add('done');
+        document.getElementById('sc-xp-'+sIdx).textContent='⭐ +'+sceneXp[sIdx]+' pts';
+        syncSimProgress();
+        setTimeout(function(){document.getElementById('complete-'+sIdx).classList.add('show');spawnCelebration();},600);
+      }
+    }
+
+    var badge=document.getElementById('rpBadge');
+    if(badge){
+      badge.textContent=isNew?'✓ Caught it':'Already found';
+      badge.classList.toggle('caught',isNew);
+    }
+    document.getElementById('rpTitle').textContent=flag.dataset.title;
+    document.getElementById('rpBody').textContent =flag.dataset.tip;
+    document.getElementById('rpXp').innerHTML=isNew
+      ?'&#x2B50; +'+xpEarned+(streak>=2?' &nbsp;&#x26A1;x'+streak+' streak!':'')
+      :'<span style="color:var(--text-muted)">You already spotted this</span>';
+    placePanel(e.clientX,e.clientY);
+    revealPanel.style.animation='none'; void revealPanel.offsetWidth;
+    revealPanel.style.animation='popIn .2s cubic-bezier(.4,0,.2,1)';
+    revealPanel.classList.add('show'); revealPanel._currentFlag=flag;
+  } else if(!e.target.closest('.tap-msg')) {
+    revealPanel.classList.remove('show'); revealPanel._currentFlag=null;
+  }
+});
+
+document.addEventListener('mousemove',function(e){
+  if(revealPanel.classList.contains('show'))placePanel(e.clientX,e.clientY);
+});
+
+function placePanel(cx,cy){
+  var pw=326,ph=175,pad=16;
+  var x=cx+pad,y=cy+pad;
+  if(x+pw>window.innerWidth) x=cx-pw-pad;
+  if(y+ph>window.innerHeight)y=cy-ph-pad;
+  if(x<8)x=8;if(y<8)y=8;
+  revealPanel.style.left=x+'px'; revealPanel.style.top=y+'px';
+}
+
+/* ════════════════════════════
+   HUD
+════════════════════════════ */
+function updateHud(){
+  document.getElementById('hudXp').textContent=totalXp;
+  document.getElementById('hudFlags').textContent=flagsFound+'/24';
+  document.getElementById('hudScenario').textContent=(currentScene+1)+'/6';
+  document.getElementById('hudXpBar').style.width=Math.min(totalXp/3600*100,100)+'%';
+}
+function updateStreakHud(){
+  var el=document.getElementById('hudStreak');
+  if(streak>=2){el.textContent='\u26A1 x'+streak+' STREAK!';el.classList.add('active');}
+  else el.classList.remove('active');
+}
+
+/* ════════════════════════════
+   XP POP + PARTICLES
+════════════════════════════ */
+function spawnXpPop(x,y,text){
+  var el=document.createElement('div');el.className='xp-pop';el.textContent=text;
+  el.style.left=(x-20)+'px';el.style.top=(y-10)+'px';
+  document.body.appendChild(el);setTimeout(function(){el.remove();},1200);
+}
+var pColors=['#e63946','#f4831f','#ffd166','#06d6a0','#ff6b35'];
+function spawnParticles(cx,cy){
+  for(var i=0;i<10;i++){(function(){
+    var el=document.createElement('div');el.className='particle';
+    el.style.background=pColors[Math.floor(Math.random()*pColors.length)];
+    el.style.left=cx+'px';el.style.top=cy+'px';
+    document.body.appendChild(el);
+    var a=Math.random()*Math.PI*2,s=50+Math.random()*80,dx=Math.cos(a)*s,dy=Math.sin(a)*s,start=null;
+    function step(ts){
+      if(!start)start=ts;var p=(ts-start)/700;if(p>=1){el.remove();return;}
+      el.style.transform='translate('+(dx*p)+'px,'+(dy*p+30*p*p)+'px)';el.style.opacity=1-p;
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  })();}
+}
+function spawnCelebration(){
+  for(var i=0;i<5;i++)setTimeout(function(){
+    spawnParticles(80+Math.random()*(window.innerWidth-160),80+Math.random()*220);
+  },i*120);
+}
+
+/* ════════════════════════════
+   REVEAL ALL
+════════════════════════════ */
+function revealAll(sIdx){
+  // Open phishing email if not opened
+  if(sIdx===0)openMail(0,'phish');
+  if(sIdx===2)openMail(2,'phish');
+  if(sIdx===1&&!browserAnimated){animateBrowser();setTimeout(function(){_doReveal(sIdx);},1500);return;}
+  _doReveal(sIdx);
+}function _doReveal(sIdx){
+  var sc=document.getElementById('scenario-'+sIdx);
+  sc.querySelectorAll('.red-flag').forEach(function(f){
+    f.classList.add('revealed');
+    var fi=parseInt(f.dataset.idx,10);
+    var dot=document.getElementById('dot-'+sIdx+'-'+fi);
+    if(dot)dot.classList.add('found');
+    if(foundFlags[sIdx].indexOf(f)===-1){foundFlags[sIdx].push(f);sceneFlagsFound[sIdx]++;flagsFound++;}
+  });
+  document.getElementById('sprog-'+sIdx).textContent='4/4 clues';
+  updateHud();
+  if(!sceneDone[sIdx]){
+    sceneDone[sIdx]=true;
+    document.getElementById('scard-'+sIdx).classList.add('done');
+    document.getElementById('sc-xp-'+sIdx).innerHTML='<span style="color:var(--text-muted)">Shown — no bonus pts</span>';
+    setTimeout(function(){document.getElementById('complete-'+sIdx).classList.add('show');},400);
+  }
+  if(sIdx===3){
+    var b=document.getElementById('s3-phish-bubble-inner'); if(b)b.classList.add('has-finds');
+    var m=document.getElementById('s3-debit-msg'); if(m)m.classList.add('investigating');
+  }
+  if(sIdx===4){
+    document.querySelectorAll('#scenario-4 .tap-msg').forEach(function(m){m.classList.add('investigating');});
+  }
+  if(sIdx===5){
+    var qr=document.getElementById('qr-scam-card'); if(qr)qr.classList.add('exposed');
+  }
+}
+
+/* ════════════════════════════
+   FINAL RESULTS
+════════════════════════════ */
+function showFinalResults(){
+  document.getElementById('gameArea').style.display='none';
+  document.getElementById('scenarioStrip').style.display='none';
+  var res=document.getElementById('finalResults');res.classList.add('show');
+  var pct=flagsFound/24;
+  var trophy,title,sub,rating;
+  if(pct>=1)    {trophy='\uD83C\uDFC6';title='Scam Spotter!';sub='You caught every clue.';rating='S';}
+  else if(pct>=.75){trophy='\uD83D\uDEE1\uFE0F';title='Sharp Eye';sub='You caught most of them.';rating='A';}
+  else if(pct>=.5) {trophy='\uD83D\uDCDA';title='Getting There';sub='Good start — try again for more.';rating='B';}
+  else             {trophy='\uD83C\uDFAF';title='Keep Practicing';sub='Replay and look a little closer.';rating='C';}
+  document.getElementById('frTrophy').textContent=trophy;
+  document.getElementById('frTitle').textContent=title;
+  document.getElementById('frSub').textContent=sub;
+  document.getElementById('frXp').textContent=totalXp;
+  document.getElementById('frFlags').textContent=flagsFound+' / 24';
+  document.getElementById('frRating').textContent=rating;
+  spawnCelebration();setTimeout(spawnCelebration,400);
+  syncSimProgress();
+  if(typeof TDApp!=='undefined'){
+    TDApp.toast({type:'ok',icon:'🏆',title:'Score saved',message:'Check the leaderboard to see your rank.',ms:3500});
+  }
+}
+
+/* ════════════════════════════
+   REPORT PHISHING
+════════════════════════════ */
+var reportedEmails = {}; // key: sIdx+'-'+key
+
+function reportEmail(sIdx, key) {
+  var isPhish = (key === 'phish');
+  var reportKey = sIdx + '-' + key;
+  var modal = document.getElementById('reportModal');
+  var alreadyReported = reportedEmails[reportKey];
+
+  if (isPhish) {
+    // Correct report — award XP if not already done
+    var xpBonus = 0;
+    if (!alreadyReported) {
+      xpBonus = 200;
+      totalXp += xpBonus;
+      updateHud();
+      reportedEmails[reportKey] = true;
+      // Mark the button as confirmed
+      var btn = document.querySelector('#s' + sIdx + '-view-phish .etb-report-phish');
+      if (btn) { btn.textContent = '✅ Reported!'; btn.classList.add('reported-ok'); btn.disabled = true; }
+    }
+    document.getElementById('rmIcon').textContent = '✅';
+    document.getElementById('rmTitle').textContent = 'Nice catch — reported!';
+    document.getElementById('rmBody').textContent = alreadyReported
+      ? 'You already reported this one. In real life, your security team would already be looking into it.'
+      : 'You spotted a scam email and reported it. That’s exactly what to do at work.';
+    var tipEl = document.getElementById('rmTip');
+    tipEl.style.display = 'block';
+    tipEl.textContent = alreadyReported
+      ? '💡 Reporting twice is fine — it helps show how many people got the same message.'
+      : '💡 +' + xpBonus + ' pts — Most companies have a Report button in email. Use it when something feels off.';
+    document.getElementById('rmActionBtn').textContent = 'Awesome!';
+  } else {
+    // False positive — safe email reported
+    var senderMap = {
+      'safe1':'hr@yourcompany.com', 'safe2':'a.rivera@yourcompany.com', 'safe3':'notifications@slack.com',
+      'd1':'noreply@shopify.com', 'd2':'digest@techbrief.io', 'd3':'no-reply@zoom.us', 'd4':'shipment-tracking@amazon.com'
+    };
+    var sender = senderMap[key] || 'this sender';
+    document.getElementById('rmIcon').textContent = '⚠️';
+    document.getElementById('rmTitle').textContent = 'This one looks real';
+    document.getElementById('rmBody').textContent =
+      'This email from ' + sender + ' is a normal message. Reporting safe mail by mistake can slow down the people who hunt real scams.';
+    var tipEl2 = document.getElementById('rmTip');
+    tipEl2.style.display = 'block';
+    tipEl2.textContent = '💡 Before reporting: Does the address look right? Is it rushing you? Is the link weird? Only report if something feels off.';
+    document.getElementById('rmActionBtn').textContent = 'Got it';
+  }
+
+  modal.classList.add('show');
+}
+
+function closeReportModal(e) {
+  // Only close if clicking backdrop or a button (not the card itself)
+  if (e && e.target.id !== 'reportModal' && e.type === 'click' && !e.target.classList.contains('rm-btn')) return;
+  document.getElementById('reportModal').classList.remove('show');
+}
+
+/* ════════════════════════════
+   REPLAY
+════════════════════════════ */
+function replayGame(){
+  totalXp=0;flagsFound=0;currentScene=0;streak=0;
+  sceneDone=[false,false,false,false,false,false];sceneFlagsFound=[0,0,0,0,0,0];sceneXp=[0,0,0,0,0,0];
+  foundFlags=[[],[],[],[],[],[]];browserAnimated=false;
+  reportedEmails={};
+
+  for(var i=0;i<6;i++){
+    document.getElementById('complete-'+i).classList.remove('show');
+    document.getElementById('sprog-'+i).textContent='0/4 clues';
+    document.getElementById('scard-'+i).classList.remove('done','active');
+    for(var j=0;j<4;j++){var d=document.getElementById('dot-'+i+'-'+j);if(d){d.classList.remove('found');d.textContent=(j+1);}}
+    document.getElementById('scenario-'+i).querySelectorAll('.red-flag').forEach(function(f){f.classList.remove('found-flag','revealed','just-tapped');});
+  }
+  document.querySelectorAll('.tap-msg').forEach(function(m){m.classList.remove('investigating','msg-react');});
+  document.querySelectorAll('.sms-bubble.phish').forEach(function(b){b.classList.remove('has-finds','found-look');});
+  var qrReset=document.getElementById('qr-scam-card'); if(qrReset)qrReset.classList.remove('exposed');
+  // reset email views
+  document.querySelectorAll('.email-view').forEach(function(v){v.classList.remove('active');v._typed=undefined;});
+  document.querySelectorAll('.reading-pane-empty').forEach(function(e){e.style.display='';});
+  document.querySelectorAll('.inbox-row').forEach(function(r){r.classList.remove('selected');});
+  ['s0-subject','s2-subject'].forEach(function(id){var el=document.getElementById(id);if(el){el.innerHTML='';el._typed=false;}});
+  ['s0-badge','s2-badge'].forEach(function(id){var el=document.getElementById(id);if(el){el.textContent='1';el.style.display='';}});
+
+  // reset reported buttons
+  document.querySelectorAll('.etb-report').forEach(function(b){
+    if(b.classList.contains('etb-report-phish')){b.textContent='\uD83D\uDEA9 Report Phishing';b.classList.remove('reported-ok');b.disabled=false;}
+  });
+
+  // reset browser
+  var urlFlag=document.querySelector('#scenario-1 .browser-address .red-flag');
+  if(urlFlag){var ns=document.createElement('span');ns.id='urlDisplay-1';ns.style.fontFamily='monospace';ns.style.fontSize='.76rem';urlFlag.replaceWith(ns);}
+  var lb=document.getElementById('loadBar-1');if(lb)lb.style.width='0%';
+  var bp=document.getElementById('bankPage-1');if(bp)bp.classList.remove('loaded');
+
+  document.getElementById('finalResults').classList.remove('show');
+  document.getElementById('gameArea').style.display='block';
+  document.getElementById('scenarioStrip').style.display='flex';
+  updateHud();
+  goScenario(0,true);
+}
+
+// inject fadeOut keyframe
+var _s=document.createElement('style');
+_s.textContent='@keyframes fadeOut{from{opacity:1}to{opacity:0;pointer-events:none}}';
+document.head.appendChild(_s);
+
+// Expose for HTML onclick= handlers
+window.startGame = startGame;
+window.goScenario = goScenario;
+window.openMail = openMail;
+window.revealAll = revealAll;
+window.reportEmail = reportEmail;
+window.closeReportModal = closeReportModal;
+window.showFinalResults = showFinalResults;
+window.replayGame = replayGame;
+window.investigateMsg = investigateMsg;
+window.showStatusBar = showStatusBar;
+window.hideStatusBar = hideStatusBar;
+})();
+</script>
+</body>
+</html>
