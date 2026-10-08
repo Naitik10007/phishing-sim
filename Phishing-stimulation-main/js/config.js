@@ -43,7 +43,7 @@ var APP_CONFIG = {
       points: ['Instagram never asks for your password in a chat', 'Be wary of countdown threats', 'Check the sender and the link before tapping']
     },
     {
-      file: 'videos/qr_upi_scan.mp4',
+      file: 'videos/qr_upi_scam.mp4',
       title: 'QR & UPI Scan Scams',
       category: 'Payments',
       blurb: 'How fake QR codes and UPI requests trick people into sending money or approving payments they did not intend.',

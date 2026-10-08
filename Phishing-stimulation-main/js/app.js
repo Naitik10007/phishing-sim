@@ -5,7 +5,8 @@ var TDApp = (function () {
   var KEY_BOARD = 'td26_board';
   var KEY_FB = 'td26_feedback';
   var KEY_FB_DONE = 'td26_feedback_done';
-  var KEY_SIG = 'td26_mirror_sig_';
+  var KEY_SENT = 'td26_form_sent_';    // last progress snapshot sent to the form, per user
+  var KEY_FINAL = 'td26_form_final_';  // set once the user's feedback (final row) has been sent
 
   if (typeof APP_CONFIG === 'undefined') {
     console.warn('[TechDay] js/config.js did not load (APP_CONFIG is undefined). Using defaults.');
@@ -32,11 +33,10 @@ var TDApp = (function () {
     if (name.length < 2) return false;
     var id = 'u_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     writeJSON(KEY_USER, { id: id, name: name });
-    // record the sign-in in the Google Form
-    sendBackup({ type: 'signin', id: id, name: name, at: new Date().toISOString() });
     return true;
   }
   function logout() {
+    sendPartialRow();   // if they never gave feedback, save their progress as one row before signing out
     try { localStorage.removeItem(KEY_USER); } catch (e) {}
     location.href = 'index.html?needLogin=1';
   }
@@ -170,7 +170,12 @@ var TDApp = (function () {
     }).then(function () { return true; }).catch(function () { return false; });
   }
 
-  /* ---------- Google Form backup (sign-ins, scores, feedback) ---------- */
+  /* ---------- Google Form backup: ONE row per user ----------
+     A Google Form can only add rows, never edit them, so the form is written to
+     as rarely as possible, with everything about the user in a single row:
+       - "final"   : when the user submits Feedback (score + feedback together)
+       - "partial" : only if the user signs out WITHOUT having given feedback
+     Sign-ins and score changes are NOT sent one by one any more. */
   function mirrorEnabled() {
     var g = cfg().GOOGLE_FORM;
     return !!((g && g.URL) || cfg().WEBHOOK_URL);
@@ -195,31 +200,29 @@ var TDApp = (function () {
       }
     } catch (e) {}
   }
-  var pendingRow = null, pendingSig = '', mirrorTimer = null;
-  function flushScoreBackup() {
-    clearTimeout(mirrorTimer);
-    if (!pendingRow) return;
-    var r = pendingRow;
-    pendingRow = null;
-    try { localStorage.setItem(KEY_SIG + r.id, pendingSig); } catch (e) {}
-    sendBackup({
-      type: 'score', id: r.id, name: r.name, score: r.score,
+  function snapshot(type, extra) {
+    var r = buildRow();
+    if (!r) return null;
+    var o = {
+      type: type, id: r.id, name: r.name, score: r.score,
       quizBest: r.quizBest, simFlags: r.simFlags, videos: r.videos,
       at: new Date().toISOString()
-    });
+    };
+    for (var k in (extra || {})) { if (Object.prototype.hasOwnProperty.call(extra, k)) o[k] = extra[k]; }
+    return o;
   }
-  // Waits a few seconds so a burst of clicks becomes one row; skips unchanged scores.
-  function queueScoreBackup(row) {
-    if (!mirrorEnabled() || !row) return;
-    var sig = [row.score, row.quizBest, row.simFlags, row.videos].join('|');
-    var last = '';
-    try { last = localStorage.getItem(KEY_SIG + row.id) || ''; } catch (e) {}
-    if (sig === last) return;
-    pendingRow = row; pendingSig = sig;
-    clearTimeout(mirrorTimer);
-    mirrorTimer = setTimeout(flushScoreBackup, 4000);
+  function sendPartialRow() {
+    if (!mirrorEnabled()) return;
+    var o = snapshot('partial');
+    if (!o) return;
+    try { if (localStorage.getItem(KEY_FINAL + o.id)) return; } catch (e) {}   // feedback already sent
+    var sig = [o.score, o.quizBest, o.simFlags, o.videos].join('|');
+    try {
+      if (localStorage.getItem(KEY_SENT + o.id) === sig) return;               // nothing new since last time
+      localStorage.setItem(KEY_SENT + o.id, sig);
+    } catch (e) {}
+    sendBackup(o);
   }
-  window.addEventListener('pagehide', flushScoreBackup);
 
   /* ---------- publish / sync ---------- */
   function publishScore() {
@@ -228,7 +231,6 @@ var TDApp = (function () {
     var map = readJSON(KEY_BOARD, {});
     map[row.id] = row;
     writeJSON(KEY_BOARD, map);
-    queueScoreBackup(row);
     if (!isOnlineBoard()) return Promise.resolve({ mode: 'local' });
     return post(withAction('submitScore', row)).then(function (ok) {
       return { mode: ok ? 'remote' : 'local' };
@@ -265,10 +267,14 @@ var TDApp = (function () {
     list.push(entry);
     writeJSON(KEY_FB, list);
     try { localStorage.setItem(KEY_FB_DONE, '1'); } catch (e) {}
-    sendBackup({
-      type: 'feedback', id: entry.id, name: entry.name, rating: entry.rating,
-      useful: entry.useful, clear: entry.clear, suggest: entry.suggest, at: entry.at
+    // the one complete row: score + feedback together
+    var fin = snapshot('final', {
+      rating: entry.rating, useful: entry.useful, clear: entry.clear, suggest: entry.suggest
     });
+    if (fin) {
+      try { localStorage.setItem(KEY_FINAL + fin.id, '1'); } catch (e) {}
+      sendBackup(fin);
+    }
     return post(withAction('submitFeedback', entry)).then(function () { return true; });
   }
 
@@ -292,6 +298,28 @@ var TDApp = (function () {
       t.classList.remove('show');
       setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 350);
     }, opts.ms || 3500);
+  }
+
+  /* ---------- layout fix: scenarios intro screen ----------
+     The intro overlay is full-screen and had no scrolling, so on shorter screens
+     (100% zoom on a laptop) the "Let's Go" button was cut off. This makes it
+     scrollable and tightens it up on shorter screens. */
+  function applyLayoutFixes() {
+    var st = document.createElement('style');
+    st.textContent =
+      '#introScreen{overflow-y:auto!important;justify-content:safe center!important}' +
+      '@supports not (justify-content:safe center){#introScreen{justify-content:flex-start!important}}' +
+      '@media (max-height:820px){' +
+        '#introScreen{padding:14px 20px!important}' +
+        '#introScreen .intro-icon{font-size:3.2rem;line-height:1.2;margin-bottom:6px}' +
+        '#introScreen .intro-title{font-size:1.8rem;margin-bottom:6px}' +
+        '#introScreen .intro-sub{margin-bottom:16px}' +
+        '#introScreen .intro-rules{margin-bottom:18px;gap:10px}' +
+        '#introScreen .intro-rule{padding:10px}' +
+        '#introScreen .brand-logo.intro{margin-bottom:6px}' +
+        '#introScreen .brand-logo.intro img{height:40px}' +
+      '}';
+    document.head.appendChild(st);
   }
 
   /* ---------- branding ----------
@@ -375,8 +403,9 @@ var TDApp = (function () {
       if (c.COMPANY_NAME) f.appendChild(document.createTextNode(' \u00A0|\u00A0 ' + c.COMPANY_NAME));
     });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyBranding);
-  else applyBranding();
+  function initPage() { applyLayoutFixes(); applyBranding(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPage);
+  else initPage();
 
   return {
     getUser: getUser, setUser: setUser, logout: logout, requireUser: requireUser,
